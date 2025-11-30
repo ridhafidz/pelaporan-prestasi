@@ -1,16 +1,32 @@
 package models
 
-import "time"
+import (
+	"database/sql"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type AchievementStatus string
+
+const (
+	StatusDraft     AchievementStatus = "draft"
+	StatusSubmitted AchievementStatus = "submitted"
+	StatusVerified  AchievementStatus = "verified"
+	StatusRejected  AchievementStatus = "rejected"
+)
 
 type AchievementReference struct {
-	ID               string    `json:"id" db:"id"`
-	StudentID        string    `json:"student_id" db:"student_id"`
-	MongoAchievementID string  `json:"mongo_achievement_id" db:"mongo_achievement_id"`
-	Status           string    `json:"status" db:"status"` // draft, submitted, verified, rejected
-	SubmittedAt      time.Time `json:"submitted_at" db:"submitted_at"`
-	VerifiedAt       time.Time `json:"verified_at" db:"verified_at"`
-	VerifiedBy       string    `json:"verified_by" db:"verified_by"`
-	RejectionNote    string    `json:"rejection_note" db:"rejection_note"`
-	CreatedAt        time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
+	ID                 uuid.UUID         `json:"id" db:"id"`
+	StudentID          uuid.UUID         `json:"student_id" db:"student_id"`
+	MongoAchievementID string            `json:"mongo_achievement_id" db:"mongo_achievement_id"`
+	Status             AchievementStatus `json:"status" db:"status"`
+
+	SubmittedAt  sql.NullTime   `json:"submittedAt,omitempty" db:"submitted_at"`
+	VerifiedAt   sql.NullTime   `json:"verifiedAt,omitempty" db:"verified_at"`
+	VerifiedBy   *uuid.UUID     `json:"verifiedBy,omitempty" db:"verified_by"`
+	RejectionNote sql.NullString `json:"rejectionNote,omitempty" db:"rejection_note"`
+
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
 }

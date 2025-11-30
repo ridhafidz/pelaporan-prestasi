@@ -1,7 +1,9 @@
 package models
 
+import "github.com/google/uuid"
+
 type Permission struct {
-	ID          string `json:"id" db:"id"`
+	ID          uuid.UUID `json:"id" db:"id"` // UUID
 	Name        string `json:"name" db:"name"`
 	Resource    string `json:"resource" db:"resource"`
 	Action      string `json:"action" db:"action"`

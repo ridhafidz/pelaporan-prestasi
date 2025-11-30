@@ -4,99 +4,103 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/jmoiron/sqlx"
 	"backend/app/models"
 )
 
-type IUserRepository interface {
-	FindByID(ctx context.Context, id string) (*models.User, error)
-	FindByEmail(ctx context.Context, email string) (*models.User, error)
+type UserRepository interface {
+	GetAll(ctx context.Context) ([]models.User, error)
+	GetByID(ctx context.Context, id string) (*models.User, error)
 	Create(ctx context.Context, user *models.User) error
 	Update(ctx context.Context, user *models.User) error
 	Delete(ctx context.Context, id string) error
-	GetAll(ctx context.Context) ([]models.User, error)
+	UpdateRole(ctx context.Context, userID string, roleID string) error
 }
 
-type UserRepository struct {
-	DB *sql.DB
+type userRepository struct {
+	db *sqlx.DB
 }
 
-func NewUserRepository(db *sql.DB) IUserRepository {
-	return &UserRepository{DB: db}
+func NewUserRepository(db *sqlx.DB) UserRepository {
+	return &userRepository{db: db}
 }
 
-func (r *UserRepository) FindByID(ctx context.Context, id string) (*models.User, error) {
-	var user models.User
-	err := r.DB.QueryRowContext(ctx, `
-		SELECT id, username, email, password_hash, full_name, role_id, is_active, created_at, updated_at
-		FROM users WHERE id = $1
-	`, id).Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.FullName, &user.RoleID, &user.IsActive, &user.CreatedAt, &user.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
+func (r *userRepository) GetAll(ctx context.Context) ([]models.User, error) {
+	var users []models.User
 
-func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
-	var user models.User
-	err := r.DB.QueryRowContext(ctx, `
-		SELECT id, username, email, password_hash, full_name, role_id, is_active, created_at, updated_at
-		FROM users WHERE email = $1
-	`, email).Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.FullName, &user.RoleID, &user.IsActive, &user.CreatedAt, &user.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
-func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
-	_, err := r.DB.ExecContext(ctx, `
-		INSERT INTO users (id, username, email, password_hash, full_name, role_id, is_active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`,
-		user.ID, user.Username, user.Email, user.PasswordHash, user.FullName, user.RoleID, user.IsActive,
-	)
-	return err
-}
-
-func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
-	_, err := r.DB.ExecContext(ctx, `
-		UPDATE users SET username=$1, email=$2, full_name=$3, role_id=$4, is_active=$5, updated_at=NOW()
-		WHERE id=$6
-	`,
-		user.Username, user.Email, user.FullName, user.RoleID, user.IsActive, user.ID,
-	)
-	return err
-}
-
-func (r *UserRepository) Delete(ctx context.Context, id string) error {
-	_, err := r.DB.ExecContext(ctx, `DELETE FROM users WHERE id=$1`, id)
-	return err
-}
-
-func (r *UserRepository) GetAll(ctx context.Context) ([]models.User, error) {
-	rows, err := r.DB.QueryContext(ctx, `
-		SELECT id, username, email, password_hash, full_name, role_id, is_active, created_at, updated_at
+	query := `
+		SELECT id, username, email, password_hash, full_name, role_id,
+		       is_active, created_at, updated_at
 		FROM users
-	`)
+		ORDER BY created_at DESC
+	`
+
+	err := r.db.SelectContext(ctx, &users, query)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var list []models.User
-	for rows.Next() {
-		var u models.User
-		rows.Scan(
-			&u.ID, &u.Username, &u.Email, &u.PasswordHash,
-			&u.FullName, &u.RoleID, &u.IsActive, &u.CreatedAt, &u.UpdatedAt,
-		)
-		list = append(list, u)
-	}
-	return list, nil
+	return users, nil
 }
+
+func (r *userRepository) GetByID(ctx context.Context, id string) (*models.User, error) {
+	var user models.User
+
+	query := `
+		SELECT id, username, email, password_hash, full_name, role_id,
+		       is_active, created_at, updated_at
+		FROM users
+		WHERE id = $1
+	`
+
+	err := r.db.GetContext(ctx, &user, query, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // NOT FOUND
+		}
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *userRepository) Create(ctx context.Context, user *models.User) error {
+	query := `
+		INSERT INTO users (id, username, email, password_hash, full_name,
+		                   role_id, is_active, created_at, updated_at)
+		VALUES (:id, :username, :email, :password_hash, :full_name,
+		        :role_id, :is_active, :created_at, :updated_at)
+	`
+
+	_, err := r.db.NamedExecContext(ctx, query, user)
+	return err
+}
+
+func (r *userRepository) Update(ctx context.Context, user *models.User) error {
+	query := `
+		UPDATE users
+		SET username = :username,
+		    email = :email,
+		    full_name = :full_name,
+		    role_id = :role_id,
+		    is_active = :is_active,
+		    updated_at = :updated_at
+		WHERE id = :id
+	`
+
+	_, err := r.db.NamedExecContext(ctx, query, user)
+	return err
+}
+
+func (r *userRepository) Delete(ctx context.Context, id string) error {
+	query := `DELETE FROM users WHERE id = $1`
+	_, err := r.db.ExecContext(ctx, query, id)
+	return err
+}
+
+func (r *userRepository) UpdateRole(ctx context.Context, userID string, roleID string) error {
+	query := `UPDATE users SET role_id = $1, updated_at = NOW() WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, roleID, userID)
+	return err
+}
+
