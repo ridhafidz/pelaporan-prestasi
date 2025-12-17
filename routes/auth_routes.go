@@ -5,7 +5,7 @@ import (
 	"github.com/google/uuid"
 
 	"backend/app/models"
-	"backend/app/services" 
+	"backend/app/service" 
 )
 
 func processLogin(s service.AuthService) fiber.Handler {
@@ -60,8 +60,6 @@ func processLogout(s service.AuthService) fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Missing token"})
 		}
 
-		// FIX: Wrap the string in the LogoutRequest struct
-		// (Check your models file to ensure the field name is 'Token' or similar)
 		req := models.LogoutRequest{
 			RefreshToken: authHeader, 
 		}

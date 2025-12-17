@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"backend/app/models"
-	"backend/app/services"
+	"backend/app/service"
 )
 
 var validate = validator.New()

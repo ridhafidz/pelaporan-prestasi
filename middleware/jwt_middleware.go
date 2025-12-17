@@ -17,7 +17,7 @@ const (
 
 func JWTMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		
+
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

@@ -20,11 +20,11 @@ type Period struct {
 
 type DynamicDetails struct {
 	CompetitionName  string `json:"competitionName,omitempty" bson:"competitionName,omitempty"`
-	CompetitionLevel string `json:"competitionLevel,omitempty" bson:"competitionLevel,omitempty"` 
+	CompetitionLevel string `json:"competitionLevel,omitempty" bson:"competitionLevel,omitempty"`
 	Rank             int    `json:"rank,omitempty" bson:"rank,omitempty"`
-	MedalType        string `json:"medalType,omitempty" bson:"medalType,omitempty"` 
+	MedalType        string `json:"medalType,omitempty" bson:"medalType,omitempty"`
 
-	PublicationType  string   `json:"publicationType,omitempty" bson:"publicationType,omitempty"` 
+	PublicationType  string   `json:"publicationType,omitempty" bson:"publicationType,omitempty"`
 	PublicationTitle string   `json:"publicationTitle,omitempty" bson:"publicationTitle,omitempty"`
 	Authors          []string `json:"authors,omitempty" bson:"authors,omitempty"`
 	Publisher        string   `json:"publisher,omitempty" bson:"publisher,omitempty"`
@@ -38,7 +38,7 @@ type DynamicDetails struct {
 	IssuedBy            string    `json:"issuedBy,omitempty" bson:"issuedBy,omitempty"`
 	CertificationNumber string    `json:"certificationNumber,omitempty" bson:"certificationNumber,omitempty"`
 	ValidUntil          time.Time `json:"validUntil,omitempty" bson:"validUntil,omitempty"`
-	
+
 	EventDate time.Time `json:"eventDate,omitempty" bson:"eventDate,omitempty"`
 	Location  string    `json:"location,omitempty" bson:"location,omitempty"`
 	Organizer string    `json:"organizer,omitempty" bson:"organizer,omitempty"`
@@ -47,19 +47,17 @@ type DynamicDetails struct {
 
 type Achievement struct {
 	ID              primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
-	StudentID       string             `json:"studentId" bson:"studentId" validate:"required"`             
-	AchievementType string             `json:"achievementType" bson:"achievementType" validate:"required"` 
+	StudentID       string             `json:"studentId" bson:"studentId" validate:"required"`
+	AchievementType string             `json:"achievementType" bson:"achievementType" validate:"required"`
 	Title           string             `json:"title" bson:"title" validate:"required"`
 	Description     string             `json:"description" bson:"description"`
-
 	Details      DynamicDetails `json:"details" bson:"details"`
 	CustomFields primitive.M    `json:"customFields,omitempty" bson:"customFields,omitempty"`
-
 	Attachments []Attachment `json:"attachments" bson:"attachments"`
 	Tags        []string     `json:"tags" bson:"tags"`
 	Points      float64      `json:"points" bson:"points"` // Poin SKP/Prestasi
-
 	CreatedAt time.Time  `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time  `json:"updatedAt" bson:"updatedAt"`
 	DeletedAt *time.Time `json:"deletedAt,omitempty" bson:"deletedAt,omitempty"`
+	IsDelete  bool       `json:"is_deleted" bson:"is_deleted"`
 }

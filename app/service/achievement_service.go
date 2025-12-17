@@ -12,6 +12,7 @@ import (
 type AchievementService interface {
 	Create(ctx context.Context, achievement *models.Achievement) (string, error)
 	GetByID(ctx context.Context, id string) (*models.Achievement, error)
+	Update(ctx context.Context, id string, achievement *models.Achievement) error
 	AddAttachment(ctx context.Context, id string, attachment models.Attachment) error
 }
 
@@ -36,7 +37,6 @@ func (s *achievementService) Create(
 		return "", errors.New("achievement payload is required")
 	}
 
-	// Validasi minimal (bisa kamu perluas)
 	if achievement.Title == "" {
 		return "", errors.New("achievement title is required")
 	}
@@ -61,6 +61,35 @@ func (s *achievementService) GetByID(
 	}
 
 	return s.repo.FindByID(ctx, id)
+}
+func (s *achievementService) Update(
+	ctx context.Context,
+	id string,
+	payload *models.Achievement,
+) error {
+
+	if id == "" {
+		return errors.New("achievement id is required")
+	}
+	if payload == nil {
+		return errors.New("update payload is required")
+	}
+
+	existing, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if payload.Title != "" {
+		existing.Title = payload.Title
+	}
+	if payload.Description != "" {
+		existing.Description = payload.Description
+	}
+
+	existing.UpdatedAt = time.Now()
+
+	return s.repo.Update(ctx, id, existing)
 }
 
 func (s *achievementService) AddAttachment(

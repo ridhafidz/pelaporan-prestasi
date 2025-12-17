@@ -1,224 +1,218 @@
 package routes
 
 import (
-	"fmt"
-	"path/filepath"
-	"time"
+	"context"
+
+	"backend/app/models"
+	"backend/app/service"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-
-	"backend/app/models"
-	"backend/app/services"
 )
 
-func processCreateAchievement(s service.AchievementService) fiber.Handler {
+func listAchievements(
+	refService service.AchievementReferenceService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		userIDVal := c.Locals("userID")
-		if userIDVal == nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "Unauthorized"})
-		}
-		studentID := userIDVal.(uuid.UUID)
+		studentID := c.Locals("student_id").(uuid.UUID)
 
-		req := new(models.CreateAchievementReferenceRequest)
-		if err := c.BodyParser(req); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid request body"})
-		}
-
-		req.StudentID = studentID
-
-		if err := validate.Struct(req); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": err.Error()})
-		}
-
-		resp, err := s.Create(c.Context(), req)
+		data, err := refService.GetByStudentID(
+			context.Background(),
+			studentID,
+			10,
+			0,
+		)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success", "data": resp})
+		return c.JSON(data)
 	}
 }
 
-func processGetAchievements(s service.AchievementService) fiber.Handler {
+func getAchievementDetail(
+	achievementService service.AchievementService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		userIDVal := c.Locals("userID")
-		roleVal := c.Locals("role")
-		
-		if userIDVal == nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "Unauthorized"})
-		}
-		userID := userIDVal.(uuid.UUID)
-		role := roleVal.(string)
+		id := c.Params("id")
 
-		page := c.QueryInt("page", 1)
-		limit := c.QueryInt("limit", 10)
-
-		var achievements []models.Achievement
-		var err error
-
-		// Logic Filter by Role
-		if role == "Mahasiswa" {
-			// Mahasiswa hanya melihat miliknya sendiri
-			achievements, err = s.GetByStudentID(c.Context(), userID, page, limit)
-		} else {
-			// Dosen/Admin melihat semua (atau logic specific Dosen Wali bisa ditambahkan di sini)
-			// Untuk sekarang kita pakai GetByStudentID dulu jika dosen ingin lihat spesifik mahasiswa, 
-			// atau Anda perlu buat method `GetAll(ctx, page, limit)` di service untuk Admin.
-			// Contoh Mock response untuk non-mahasiswa sementara:
-			return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"message": "View for Lecturer/Admin not implemented yet in service"})
-		}
-
+		data, err := achievementService.GetByID(context.Background(), id)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
 		}
 
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"status": "success",
-			"data":   achievements,
-			"meta":   fiber.Map{"page": page, "limit": limit},
+		return c.JSON(data)
+	}
+}
+
+func createAchievement(
+	achievementService service.AchievementService,
+	refService service.AchievementReferenceService,
+) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		var payload models.Achievement
+
+		if err := c.BodyParser(&payload); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+
+		studentID := c.Locals("student_id").(uuid.UUID)
+		payload.StudentID = studentID.String()
+
+		mongoID, err := achievementService.Create(
+			context.Background(),
+			&payload,
+		)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+
+		if _, err := refService.Create(
+			context.Background(),
+			studentID,
+			mongoID,
+		); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+			"id": mongoID,
 		})
 	}
 }
 
-func processGetAchievementByID(s service.AchievementReferenceService) fiber.Handler {
+func updateAchievement(
+	achievementService service.AchievementService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		idParam := c.Params("id")
-		id, err := uuid.Parse(idParam)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid UUID"})
+		id := c.Params("id")
+
+		var payload models.Achievement
+		if err := c.BodyParser(&payload); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 
-		achievement, err := s.GetByID(c.Context(), id)
-		if err != nil {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"status": "fail", "message": "Achievement not found"})
+		if err := achievementService.Update(
+			context.Background(),
+			id,
+			&payload,
+		); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "data": achievement})
+		return c.SendStatus(fiber.StatusOK)
 	}
 }
 
-func processSubmitAchievement(s service.AchievementService) fiber.Handler {
+func deleteAchievement(
+	refService service.AchievementReferenceService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		idParam := c.Params("id")
-		id, err := uuid.Parse(idParam)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid UUID"})
+		id := c.Params("id")
+
+		if err := refService.Delete(
+			context.Background(),
+			id,
+		); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 
-		if err := s.Submit(c.Context(), id); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
-		}
-
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "message": "Achievement submitted successfully"})
+		return c.SendStatus(fiber.StatusOK)
 	}
 }
 
-func processVerifyAchievement(s service.AchievementService) fiber.Handler {
+func submitAchievement(
+	refService service.AchievementReferenceService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Verifier (Dosen) ID
-		userIDVal := c.Locals("userID")
-		verifierID := userIDVal.(uuid.UUID)
+		id := c.Params("id")
 
-		// Target Achievement ID
-		idParam := c.Params("id")
-		id, err := uuid.Parse(idParam)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid UUID"})
+		if err := refService.Submit(context.Background(), id); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 
-		if err := s.Verify(c.Context(), id, verifierID); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
-		}
-
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "message": "Achievement verified successfully"})
+		return c.SendStatus(fiber.StatusOK)
 	}
 }
 
-func processRejectAchievement(s service.AchievementService) fiber.Handler {
+func verifyAchievement(
+	refService service.AchievementReferenceService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		idParam := c.Params("id")
-		id, err := uuid.Parse(idParam)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid UUID"})
+		id := c.Params("id")
+		verifierID := c.Locals("user_id").(uuid.UUID)
+
+		if err := refService.Verify(
+			context.Background(),
+			id,
+			verifierID,
+		); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 
-		req := new(models.RejectAchievementRequest)
-		if err := c.BodyParser(req); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid body"})
-		}
-
-		if err := s.Reject(c.Context(), id, req); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
-		}
-
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "message": "Achievement rejected"})
+		return c.SendStatus(fiber.StatusOK)
 	}
 }
 
-func processAddAttachment(s service.AchievementService) fiber.Handler {
+func rejectAchievement(
+	refService service.AchievementReferenceService,
+) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		idParam := c.Params("id")
-		id, err := uuid.Parse(idParam)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid UUID"})
+		id := c.Params("id")
+
+		var body struct {
+			Note string `json:"note"`
+		}
+		if err := c.BodyParser(&body); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 
-		// 1. Handle File Upload (Fiber)
-		file, err := c.FormFile("file")
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "File is required"})
+		if err := refService.Reject(
+			context.Background(),
+			id,
+			body.Note,
+		); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 
-		// 2. Simpan File (Contoh sederhana: simpan lokal)
-		// Di production, upload ke S3/GCS lalu dapatkan URL-nya
-		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), file.Filename)
-		filePath := filepath.Join("./uploads", filename)
-		
-		if err := c.SaveFile(file, filePath); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "Failed to save file"})
-		}
-
-		// 3. Buat Object Attachment
-		attachment := models.Attachment{
-			FileName:   file.Filename,
-			FileURL:    "/uploads/" + filename, // URL akses publik
-			FileType:   filepath.Ext(filename),
-			UploadedAt: time.Now(),
-		}
-
-		// 4. Call Service
-		if err := s.AddAttachment(c.Context(), id, attachment); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
-		}
-
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "data": attachment})
+		return c.SendStatus(fiber.StatusOK)
 	}
 }
 
-// --- SETUP ROUTES ---
+func achievementHistory(
+	refService service.AchievementReferenceService,
+) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		id := c.Params("id")
 
-// Tambahkan authService jika middleware membutuhkannya, atau cukup UserService untuk profile
-func SetupAchievementRoutes(api fiber.Router, achievementService service.AchievementService) {
-	
-	achievements := api.Group("/achievements")
+		data, err := refService.GetByMongoID(context.Background(), id)
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
 
-	// Middleware (Auth Check) sudah harus terpasang di level 'api' atau group induknya di routes.go
-	// Jika belum, tambahkan: achievements.Use(middleware.JWTMiddleware())
+		return c.JSON(data)
+	}
+}
 
-	// Endpoint List sesuai Gambar
-	achievements.Get("/", processGetAchievements(achievementService))
-	achievements.Post("/", processCreateAchievement(achievementService))
-	achievements.Get("/:id", processGetAchievementByID(achievementService))
-	
-	// Workflow Endpoints
-	achievements.Post("/:id/submit", processSubmitAchievement(achievementService))
-	achievements.Post("/:id/verify", processVerifyAchievement(achievementService)) // Sebaiknya tambah middleware OnlyLecturer
-	achievements.Post("/:id/reject", processRejectAchievement(achievementService)) // Sebaiknya tambah middleware OnlyLecturer
-	
-	achievements.Post("/:id/attachments", processAddAttachment(achievementService))
+func addAttachment(
+	achievementService service.AchievementService,
+) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		id := c.Params("id")
 
-	// Note: Endpoint Update (PUT) dan Delete (DELETE) bisa ditambahkan serupa dengan pola di atas
-	// achievements.Put("/:id", processUpdateAchievement(achievementService))
-	// achievements.Delete("/:id", processDeleteAchievement(achievementService))
+		var attachment models.Attachment
+		if err := c.BodyParser(&attachment); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+
+		if err := achievementService.AddAttachment(
+			context.Background(),
+			id,
+			attachment,
+		); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+
+		return c.SendStatus(fiber.StatusCreated)
+	}
 }

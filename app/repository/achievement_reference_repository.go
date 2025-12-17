@@ -19,7 +19,7 @@ type AchievementReferenceRepository interface {
 	UpdateStatus(ctx context.Context, mongoID string, status models.AchievementStatus) error
 	Verify(ctx context.Context, mongoID string, verifierID uuid.UUID) error
 	Reject(ctx context.Context, mongoID string, note string) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	SoftDeleteByMongoID(ctx context.Context, mongoID string) error
 }
 
 type achievementReferenceRepository struct {
@@ -75,8 +75,6 @@ func (r *achievementReferenceRepository) GetByMongoID(ctx context.Context, mongo
 
 func (r *achievementReferenceRepository) scanRow(ctx context.Context, query string, arg interface{}) (*models.AchievementReference, error) {
 	var ref models.AchievementReference
-
-	// Variables to handle SQL NULLs
 	var submittedAt, verifiedAt sql.NullTime
 	var verifiedBy sql.NullString
 	var rejectionNote sql.NullString
@@ -88,12 +86,10 @@ func (r *achievementReferenceRepository) scanRow(ctx context.Context, query stri
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil // Return nil if not found
+			return nil, nil
 		}
 		return nil, err
 	}
-
-	// Map Nullable types back to struct
 	if submittedAt.Valid {
 		ref.SubmittedAt = &submittedAt.Time
 	}
@@ -111,12 +107,25 @@ func (r *achievementReferenceRepository) scanRow(ctx context.Context, query stri
 	return &ref, nil
 }
 
-func (r *achievementReferenceRepository) UpdateStatus(ctx context.Context, mongoID string, status models.AchievementStatus) error {
+func (r *achievementReferenceRepository) UpdateStatus(
+	ctx context.Context,
+	mongoID string,
+	status models.AchievementStatus,
+) error {
+
 	query := `
-        UPDATE achievement_references 
-        SET status = $1, updated_at = NOW(), submitted_at = CASE WHEN $1 = 'submitted' THEN NOW() ELSE submitted_at END
-        WHERE mongo_achievement_id = $2
-    `
+		UPDATE achievement_references
+		SET 
+			status = $1,
+			submitted_at = CASE 
+				WHEN $1 = 'submitted' THEN NOW() 
+				ELSE submitted_at 
+			END,
+			updated_at = NOW()
+		WHERE mongo_achievement_id = $2
+		AND status = 'draft'
+	`
+
 	_, err := r.db.ExecContext(ctx, query, status, mongoID)
 	return err
 }
@@ -166,8 +175,15 @@ func (r *achievementReferenceRepository) GetByStudentID(ctx context.Context, stu
 	return refs, nil
 }
 
-func (r *achievementReferenceRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := "DELETE FROM achievement_references WHERE id = $1"
-	_, err := r.db.ExecContext(ctx, query, id)
+func (r *achievementReferenceRepository) SoftDeleteByMongoID(
+	ctx context.Context,
+	mongoID string,
+) error {
+	query := `
+		UPDATE achievement_references
+		SET status = 'deleted', updated_at = NOW()
+		WHERE mongo_achievement_id = $1
+	`
+	_, err := r.db.ExecContext(ctx, query, mongoID)
 	return err
 }

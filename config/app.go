@@ -1,68 +1,64 @@
 package config
 
 import (
-	"context"
 	"log"
 	"os"
 
-	"backend/app/repository/postgree"
-	"backend/app/repository/mongo"
-	"backend/app/services/mongo"
-	"backend/app/services/postgree"
+	"backend/app/repository"
+	"backend/app/service"
 	"backend/database"
 	"backend/routes"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 )
 
 type Application struct {
-	Router *gin.Engine
+	App *fiber.App
 }
 
 func InitApp() *Application {
 	LoadENV()
 
-	dbx, err := database.NewPostgresDB()
-	if err != nil {
-		log.Fatalf("failed to connect to postgres: %v", err)
+	database.ConnectPostgres()
+	database.ConnectMongo()
+
+	postgresDB := database.PostgresDB
+	mongoDB := database.MongoDB
+
+	userRepo := repository.NewUserRepository(postgresDB)
+	authRepo := repository.NewAuthRepository(postgresDB)
+
+	achievementRepo := repository.NewAchievementRepository(mongoDB)
+	achievementRefRepo := repository.NewAchievementReferenceRepository(postgresDB)
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("❌ JWT_SECRET is not set")
 	}
 
-	// sqlx.DB contains underlying *sql.DB as field DB
-	stdDB := dbx.DB
-
-	userRepo := repository.NewUserRepository(stdDB)
-	authRepo := repository.NewAuthRepository(stdDB)
-	studentRepo := repository.NewStudentRepository(dbx)
-
-	// create mongo client for achievements repository
-	mongoClient, err := database.NewMongoClient(context.Background())
-	if err != nil {
-		log.Fatalf("failed to connect to mongo: %v", err)
-	}
-	dbName := os.Getenv("MONGO_DB")
-	if dbName == "" {
-		dbName = "prestasi"
-	}
-	achievementRepo := repository.NewAchievementRepository(mongoClient, dbName)
-
-	authService := service.NewAuthService(userRepo, authRepo)
+	authService := service.NewAuthService(authRepo, jwtSecret)
 	userService := service.NewUserService(userRepo)
-	studentService := service.NewStudentService(studentRepo)
+
 	achievementService := service.NewAchievementService(achievementRepo)
+	achievementReferenceService :=
+		service.NewAchievementReferenceService(
+			achievementRefRepo,
+			achievementRepo,
+		)
 
-	r := gin.Default()
+	app := fiber.New(fiber.Config{
+		AppName: "Pelaporan-Prestasi",
+	})
 
-	r.Use(gin.Logger())
-	r.Use(gin.Recovery())
+	routes.SetupRoutes(
+		app,
+		userService,
+		authService,
+		achievementService,
+		achievementReferenceService,
+	)
 
-	routes.RegisterAuthRoutes(r, authService)
-	routes.RegisterUserRoutes(r, userService)
-	routes.RegisterStudentRoutes(r, studentService)
-	routes.RegisterAchievementRoutes(r, achievementService)
+	log.Println("🚀 Application running on port:", os.Getenv("APP_PORT"))
 
-	log.Println("Application started on port:", ENV.AppPort)
-
-	return &Application{
-		Router: r,
-	}
+	return &Application{App: app}
 }

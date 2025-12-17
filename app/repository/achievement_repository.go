@@ -15,6 +15,8 @@ type AchievementRepository interface {
 	Create(ctx context.Context, achievement *models.Achievement) (string, error)
 	FindByID(ctx context.Context, id string) (*models.Achievement, error)
 	AddAttachment(ctx context.Context, id string, attachment models.Attachment) error
+	Update(ctx context.Context, id string, achievement *models.Achievement) error
+	SoftDelete(ctx context.Context, id string) error
 }
 
 type achievementRepository struct {
@@ -27,13 +29,11 @@ func NewAchievementRepository(db *mongo.Database) AchievementRepository {
 	}
 }
 
-// Create: Menyimpan data detail ke Mongo dan mengembalikan ID string untuk disimpan di Postgres
 func (r *achievementRepository) Create(ctx context.Context, achievement *models.Achievement) (string, error) {
 	achievement.ID = primitive.NewObjectID()
 	achievement.CreatedAt = time.Now()
 	achievement.UpdatedAt = time.Now()
 
-	// Poin default 0 jika tidak diisi (sesuai SRS field points: Number) [cite: 154]
 	if achievement.Points == 0 {
 		achievement.Points = 0
 	}
@@ -42,21 +42,21 @@ func (r *achievementRepository) Create(ctx context.Context, achievement *models.
 	if err != nil {
 		return "", err
 	}
-	// Return Hex String ID untuk disimpan di tabel Postgres 'mongo_achievement_id'
 	return achievement.ID.Hex(), nil
 }
 
-// FindByID: Mengambil detail data
 func (r *achievementRepository) FindByID(ctx context.Context, id string) (*models.Achievement, error) {
 	objID, _ := primitive.ObjectIDFromHex(id)
-	filter := bson.M{"_id": objID}
+	filter := bson.M{
+		"_id":        objID,
+		"is_deleted": bson.M{"$ne": true},
+	}
 
 	var achievement models.Achievement
 	err := r.collection.FindOne(ctx, filter).Decode(&achievement)
 	return &achievement, err
 }
 
-// AddAttachment: Upload files [cite: 281]
 func (r *achievementRepository) AddAttachment(ctx context.Context, id string, attachment models.Attachment) error {
 	objID, _ := primitive.ObjectIDFromHex(id)
 	filter := bson.M{"_id": objID}
@@ -65,5 +65,57 @@ func (r *achievementRepository) AddAttachment(ctx context.Context, id string, at
 		"$set":  bson.M{"updatedAt": time.Now()},
 	}
 	_, err := r.collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
+func (r *achievementRepository) Update(
+	ctx context.Context,
+	id string,
+	achievement *models.Achievement,
+) error {
+
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+
+	filter := bson.M{"_id": objID}
+
+	update := bson.M{
+		"$set": bson.M{
+			"title":       achievement.Title,
+			"description": achievement.Description,
+			"details":     achievement.Details,
+			"tags":        achievement.Tags,
+			"points":      achievement.Points,
+			"updatedAt":   achievement.UpdatedAt,
+		},
+	}
+
+	_, err = r.collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
+func (r *achievementRepository) SoftDelete(
+	ctx context.Context,
+	id string,
+) error {
+
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+
+	update := bson.M{
+		"$set": bson.M{
+			"is_deleted": true,
+			"deletedAt":  now,
+			"updatedAt":  now,
+		},
+	}
+
+	_, err = r.collection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 	return err
 }

@@ -15,23 +15,24 @@ type AchievementReferenceService interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*models.AchievementReference, error)
 	GetByMongoID(ctx context.Context, mongoID string) (*models.AchievementReference, error)
 	GetByStudentID(ctx context.Context, studentID uuid.UUID, limit, offset int) ([]models.AchievementReference, error)
-
 	Submit(ctx context.Context, mongoID string) error
 	Verify(ctx context.Context, mongoID string, verifierID uuid.UUID) error
 	Reject(ctx context.Context, mongoID string, note string) error
-
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, mongoID string) error
 }
 
 type achievementReferenceService struct {
-	repo repository.AchievementReferenceRepository
+	repo            repository.AchievementReferenceRepository
+	achievementRepo repository.AchievementRepository
 }
 
 func NewAchievementReferenceService(
 	repo repository.AchievementReferenceRepository,
+	achievementRepo repository.AchievementRepository,
 ) AchievementReferenceService {
 	return &achievementReferenceService{
-		repo: repo,
+		repo:            repo,
+		achievementRepo: achievementRepo,
 	}
 }
 
@@ -41,7 +42,6 @@ func (s *achievementReferenceService) Create(
 	mongoAchievementID string,
 ) (*models.AchievementReference, error) {
 
-	// Cegah duplikasi mongo_id
 	existing, err := s.repo.GetByMongoID(ctx, mongoAchievementID)
 	if err != nil {
 		return nil, err
@@ -152,7 +152,24 @@ func (s *achievementReferenceService) Reject(
 
 func (s *achievementReferenceService) Delete(
 	ctx context.Context,
-	id uuid.UUID,
+	mongoID string,
 ) error {
-	return s.repo.Delete(ctx, id)
+
+	ref, err := s.repo.GetByMongoID(ctx, mongoID)
+	if err != nil {
+		return err
+	}
+	if ref == nil {
+		return errors.New("achievement not found")
+	}
+
+	if ref.Status != models.StatusDraft {
+		return errors.New("only draft achievement can be deleted")
+	}
+
+	if err := s.achievementRepo.SoftDelete(ctx, mongoID); err != nil {
+		return err
+	}
+
+	return s.repo.UpdateStatus(ctx, mongoID, models.StatusDeleted)
 }
