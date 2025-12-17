@@ -2,10 +2,10 @@ package main
 
 import (
 	"log"
-	// "backend/config" 
-	"backend/database" 
+	"os"
 
-	"github.com/gofiber/fiber/v2"
+	"backend/config"
+
 	"github.com/joho/godotenv"
 )
 
@@ -14,21 +14,13 @@ func main() {
 		log.Println("⚠️  Warning: .env file not found")
 	}
 
-	log.Println("⏳ Mencoba menghubungkan database...")
-	database.ConnectPostgres()
-	database.ConnectMongo()
+	app := config.InitApp()
 
-	app := fiber.New()
+	port := os.Getenv("APP_PORT")
+	if port == "" {
+		port = "3000"
+	}
 
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"status":   "success",
-			"message":  "Database connections are healthy!",
-			"postgres": "connected",
-			"mongo":    "connected",
-		})
-	})
-
-	// Jalankan server
-	log.Fatal(app.Listen(":3000"))
+	log.Println("🚀 Server running on port:", port)
+	log.Fatal(app.App.Listen(":" + port))
 }

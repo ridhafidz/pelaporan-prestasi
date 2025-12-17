@@ -31,6 +31,8 @@ func InitApp() *Application {
 	achievementRepo := repository.NewAchievementRepository(mongoDB)
 	achievementRefRepo := repository.NewAchievementReferenceRepository(postgresDB)
 
+	studentLecturerRepo := repository.NewStudentLecturerRepository(postgresDB)
+
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("❌ JWT_SECRET is not set")
@@ -45,6 +47,7 @@ func InitApp() *Application {
 			achievementRefRepo,
 			achievementRepo,
 		)
+	studentLecturerService := service.NewStudentLecturerService(studentLecturerRepo)
 
 	app := fiber.New(fiber.Config{
 		AppName: "Pelaporan-Prestasi",
@@ -56,6 +59,7 @@ func InitApp() *Application {
 		authService,
 		achievementService,
 		achievementReferenceService,
+		studentLecturerService,
 	)
 
 	log.Println("🚀 Application running on port:", os.Getenv("APP_PORT"))

@@ -11,7 +11,7 @@ import (
 )
 
 func SetupRoutes(app *fiber.App, userService service.UserService, authService service.AuthService, achievementService service.AchievementService,
-	referenceService service.AchievementReferenceService) {
+	referenceService service.AchievementReferenceService, studentLecturerService service.StudentLecturerService) {
 
 	api := app.Group("/api/v1")
 	auth := api.Group("/auth")
@@ -49,5 +49,14 @@ func SetupRoutes(app *fiber.App, userService service.UserService, authService se
 	achievements.Post("/:id/verify", verifyAchievement(referenceService))
 	achievements.Post("/:id/reject", rejectAchievement(referenceService))
 	achievements.Get("/:id/history", achievementHistory(referenceService))
+
+	students := api.Group("/students")
+	students.Get("/", StudentList(studentLecturerService))
+	students.Get("/:id", StudentGetByID(studentLecturerService))
+	students.Put("/:id/advisor", StudentUpdateAdvisor(studentLecturerService))
+
+	lecturers := api.Group("/lecturers")
+	lecturers.Get("/", LecturerList(studentLecturerService))
+	lecturers.Get("/:id/advisees", LecturerAdvisees(studentLecturerService))
 
 }
