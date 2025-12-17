@@ -140,7 +140,7 @@ func (s *authService) GetProfile(ctx context.Context, userID uuid.UUID) (*models
     }, nil
 }
 
-func (s *authService) generateToken(user *models.UserEntity, permissions []string, ttl time.Duration) (string, error) {
+func (s *authService) generateToken(user *models.User, permissions []string, ttl time.Duration) (string, error) {
     claims := models.UserClaims{
         UserID:      user.ID,
         Username:    user.Username,

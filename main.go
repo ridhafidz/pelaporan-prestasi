@@ -1,27 +1,9 @@
 package main
 
 import (
-	"backend/config"
 	"log"
-)
-
-func main() {
-	app := config.InitApp()
-	if app == nil || app.Router == nil {
-		log.Fatal("failed to initialize application")
-	}
-
-	// Start the HTTP server on configured port
-	if err := app.Router.Run(":" + config.ENV.AppPort); err != nil {
-		log.Fatalf("server failed: %v", err)
-	}
-}
-package main
-
-import (
-	"log"
-	"your_project_name/config"   // Sesuaikan dengan nama module di go.mod
-	"your_project_name/database" // Sesuaikan dengan nama module di go.mod
+	// "backend/config" 
+	"backend/database" 
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"

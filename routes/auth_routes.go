@@ -2,14 +2,13 @@ package routes
 
 import (
 	"github.com/gofiber/fiber/v2"
-
-	models "backend/app/models/postgree"
-	services "backend/app/services/postgree"
-
 	"github.com/google/uuid"
+
+	"backend/app/models"
+	"backend/app/services" 
 )
 
-func processLogin(s services.AuthService) fiber.Handler {
+func processLogin(s service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		req := new(models.LoginRequest)
 
@@ -21,7 +20,7 @@ func processLogin(s services.AuthService) fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": err.Error()})
 		}
 
-		authResponse, err := s.Login(c.Context(), req)
+		authResponse, err := s.Login(c.Context(), *req)
 		if err != nil {
 			if err.Error() == "invalid credentials" {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "Invalid email or password"})
@@ -33,7 +32,7 @@ func processLogin(s services.AuthService) fiber.Handler {
 	}
 }
 
-func processRefreshToken(s services.AuthService) fiber.Handler {
+func processRefreshToken(s service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		req := new(models.RefreshTokenRequest)
 
@@ -45,7 +44,7 @@ func processRefreshToken(s services.AuthService) fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": err.Error()})
 		}
 
-		resp, err := s.RefreshToken(c.Context(), req)
+		resp, err := s.RefreshToken(c.Context(), *req)
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": err.Error()})
 		}
@@ -54,14 +53,20 @@ func processRefreshToken(s services.AuthService) fiber.Handler {
 	}
 }
 
-func processLogout(s services.AuthService) fiber.Handler {
+func processLogout(s service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Missing token"})
 		}
 
-		if err := s.Logout(c.Context(), authHeader); err != nil {
+		// FIX: Wrap the string in the LogoutRequest struct
+		// (Check your models file to ensure the field name is 'Token' or similar)
+		req := models.LogoutRequest{
+			RefreshToken: authHeader, 
+		}
+
+		if err := s.Logout(c.Context(), req); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
 		}
 
@@ -69,7 +74,7 @@ func processLogout(s services.AuthService) fiber.Handler {
 	}
 }
 
-func processGetProfile(s services.UserService) fiber.Handler {
+func processGetProfile(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 
 		userIDVal := c.Locals("userID")

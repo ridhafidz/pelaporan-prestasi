@@ -3,14 +3,14 @@ package routes
 import (
 	"os"
 
-	services "backend/app/services/postgree"
+	"backend/app/services"
 	"backend/middleware"
 
 	jwtware "github.com/gofiber/contrib/jwt"
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRoutes(app *fiber.App, userService services.UserService, authService services.AuthService) {
+func SetupRoutes(app *fiber.App, userService service.UserService, authService service.AuthService) {
 
 	api := app.Group("/api/v1")
 	auth := api.Group("/auth")

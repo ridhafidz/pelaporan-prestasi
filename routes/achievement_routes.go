@@ -1,134 +1,224 @@
 package routes
 
 import (
-	"net/http"
+	"fmt"
+	"path/filepath"
+	"time"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 
 	"backend/app/models"
 	"backend/app/services"
-	"backend/middleware"
-
-	"github.com/gin-gonic/gin"
 )
 
-// RegisterAchievementRoutes registers achievement-related HTTP routes
-func RegisterAchievementRoutes(r *gin.Engine, achievementService service.AchievementService) {
-	a := r.Group("/achievements")
-	a.Use(middleware.JWTMiddleware())
+func processCreateAchievement(s service.AchievementService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		userIDVal := c.Locals("userID")
+		if userIDVal == nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "Unauthorized"})
+		}
+		studentID := userIDVal.(uuid.UUID)
 
-	// Create achievement (admin/dosen)
-	a.POST("/", middleware.RBAC("admin", "dosen"), func(c *gin.Context) {
-		var req models.Achievement
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": err.Error()})
-			return
+		req := new(models.CreateAchievementReferenceRequest)
+		if err := c.BodyParser(req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid request body"})
 		}
 
-		created, err := achievementService.Create(c, &req)
+		req.StudentID = studentID
+
+		if err := validate.Struct(req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": err.Error()})
+		}
+
+		resp, err := s.Create(c.Context(), req)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
-			return
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"status": "success", "data": created})
-	})
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "success", "data": resp})
+	}
+}
 
-	// List achievements by student_id or tag
-	a.GET("/", middleware.RBAC("admin", "dosen", "mahasiswa"), func(c *gin.Context) {
-		studentID := c.Query("student_id")
-		tag := c.Query("tag")
+func processGetAchievements(s service.AchievementService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		userIDVal := c.Locals("userID")
+		roleVal := c.Locals("role")
+		
+		if userIDVal == nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "Unauthorized"})
+		}
+		userID := userIDVal.(uuid.UUID)
+		role := roleVal.(string)
 
-		if studentID != "" {
-			results, err := achievementService.GetByStudentID(c, studentID)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{"status": "success", "data": results})
-			return
+		page := c.QueryInt("page", 1)
+		limit := c.QueryInt("limit", 10)
+
+		var achievements []models.Achievement
+		var err error
+
+		// Logic Filter by Role
+		if role == "Mahasiswa" {
+			// Mahasiswa hanya melihat miliknya sendiri
+			achievements, err = s.GetByStudentID(c.Context(), userID, page, limit)
+		} else {
+			// Dosen/Admin melihat semua (atau logic specific Dosen Wali bisa ditambahkan di sini)
+			// Untuk sekarang kita pakai GetByStudentID dulu jika dosen ingin lihat spesifik mahasiswa, 
+			// atau Anda perlu buat method `GetAll(ctx, page, limit)` di service untuk Admin.
+			// Contoh Mock response untuk non-mahasiswa sementara:
+			return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"message": "View for Lecturer/Admin not implemented yet in service"})
 		}
 
-		if tag != "" {
-			// optional limit param
-			limit := int64(10)
-			if l := c.Query("limit"); l != "" {
-				// ignore parse errors and fall back to default
-			}
-
-			results, err := achievementService.FindByTag(c, tag, limit)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{"status": "success", "data": results})
-			return
-		}
-
-		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "provide student_id or tag as query parameter"})
-	})
-
-	// Get achievement by id
-	a.GET(":id", middleware.RBAC("admin", "dosen", "mahasiswa"), func(c *gin.Context) {
-		id := c.Param("id")
-		res, err := achievementService.GetByID(c, id)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"status": "error", "message": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"status": "success", "data": res})
-	})
-
-	// Update achievement (admin/dosen)
-	a.PUT(":id", middleware.RBAC("admin", "dosen"), func(c *gin.Context) {
-		id := c.Param("id")
-
-		var updates map[string]interface{}
-		if err := c.ShouldBindJSON(&updates); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": err.Error()})
-			return
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
 		}
 
-		if err := achievementService.Update(c, id, updates); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": err.Error()})
-			return
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"status": "success",
+			"data":   achievements,
+			"meta":   fiber.Map{"page": page, "limit": limit},
+		})
+	}
+}
+
+func processGetAchievementByID(s service.AchievementReferenceService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		idParam := c.Params("id")
+		id, err := uuid.Parse(idParam)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid UUID"})
 		}
 
-		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Achievement updated"})
-	})
-
-	// Soft delete achievement (admin)
-	a.DELETE(":id", middleware.RBAC("admin"), func(c *gin.Context) {
-		id := c.Param("id")
-		if err := achievementService.SoftDelete(c, id); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Achievement deleted"})
-	})
-
-	// Add attachment to achievement
-	a.POST(":id/attachments", middleware.RBAC("admin", "dosen"), func(c *gin.Context) {
-		id := c.Param("id")
-		var att models.Attachment
-		if err := c.ShouldBindJSON(&att); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": err.Error()})
-			return
+		achievement, err := s.GetByID(c.Context(), id)
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"status": "fail", "message": "Achievement not found"})
 		}
 
-		if err := achievementService.AddAttachment(c, id, att); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Attachment added"})
-	})
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "data": achievement})
+	}
+}
 
-	// Remove attachment by file name
-	a.DELETE(":id/attachments/:filename", middleware.RBAC("admin", "dosen"), func(c *gin.Context) {
-		id := c.Param("id")
-		filename := c.Param("filename")
-		if err := achievementService.RemoveAttachment(c, id, filename); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": err.Error()})
-			return
+func processSubmitAchievement(s service.AchievementService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		idParam := c.Params("id")
+		id, err := uuid.Parse(idParam)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid UUID"})
 		}
-		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Attachment removed"})
-	})
+
+		if err := s.Submit(c.Context(), id); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
+		}
+
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "message": "Achievement submitted successfully"})
+	}
+}
+
+func processVerifyAchievement(s service.AchievementService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Verifier (Dosen) ID
+		userIDVal := c.Locals("userID")
+		verifierID := userIDVal.(uuid.UUID)
+
+		// Target Achievement ID
+		idParam := c.Params("id")
+		id, err := uuid.Parse(idParam)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid UUID"})
+		}
+
+		if err := s.Verify(c.Context(), id, verifierID); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
+		}
+
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "message": "Achievement verified successfully"})
+	}
+}
+
+func processRejectAchievement(s service.AchievementService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		idParam := c.Params("id")
+		id, err := uuid.Parse(idParam)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid UUID"})
+		}
+
+		req := new(models.RejectAchievementRequest)
+		if err := c.BodyParser(req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid body"})
+		}
+
+		if err := s.Reject(c.Context(), id, req); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
+		}
+
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "message": "Achievement rejected"})
+	}
+}
+
+func processAddAttachment(s service.AchievementService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		idParam := c.Params("id")
+		id, err := uuid.Parse(idParam)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid UUID"})
+		}
+
+		// 1. Handle File Upload (Fiber)
+		file, err := c.FormFile("file")
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "File is required"})
+		}
+
+		// 2. Simpan File (Contoh sederhana: simpan lokal)
+		// Di production, upload ke S3/GCS lalu dapatkan URL-nya
+		filename := fmt.Sprintf("%d_%s", time.Now().Unix(), file.Filename)
+		filePath := filepath.Join("./uploads", filename)
+		
+		if err := c.SaveFile(file, filePath); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "Failed to save file"})
+		}
+
+		// 3. Buat Object Attachment
+		attachment := models.Attachment{
+			FileName:   file.Filename,
+			FileURL:    "/uploads/" + filename, // URL akses publik
+			FileType:   filepath.Ext(filename),
+			UploadedAt: time.Now(),
+		}
+
+		// 4. Call Service
+		if err := s.AddAttachment(c.Context(), id, attachment); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
+		}
+
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "data": attachment})
+	}
+}
+
+// --- SETUP ROUTES ---
+
+// Tambahkan authService jika middleware membutuhkannya, atau cukup UserService untuk profile
+func SetupAchievementRoutes(api fiber.Router, achievementService service.AchievementService) {
+	
+	achievements := api.Group("/achievements")
+
+	// Middleware (Auth Check) sudah harus terpasang di level 'api' atau group induknya di routes.go
+	// Jika belum, tambahkan: achievements.Use(middleware.JWTMiddleware())
+
+	// Endpoint List sesuai Gambar
+	achievements.Get("/", processGetAchievements(achievementService))
+	achievements.Post("/", processCreateAchievement(achievementService))
+	achievements.Get("/:id", processGetAchievementByID(achievementService))
+	
+	// Workflow Endpoints
+	achievements.Post("/:id/submit", processSubmitAchievement(achievementService))
+	achievements.Post("/:id/verify", processVerifyAchievement(achievementService)) // Sebaiknya tambah middleware OnlyLecturer
+	achievements.Post("/:id/reject", processRejectAchievement(achievementService)) // Sebaiknya tambah middleware OnlyLecturer
+	
+	achievements.Post("/:id/attachments", processAddAttachment(achievementService))
+
+	// Note: Endpoint Update (PUT) dan Delete (DELETE) bisa ditambahkan serupa dengan pola di atas
+	// achievements.Put("/:id", processUpdateAchievement(achievementService))
+	// achievements.Delete("/:id", processDeleteAchievement(achievementService))
 }

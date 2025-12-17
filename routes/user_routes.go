@@ -5,13 +5,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
-	models "backend/app/models/postgree"
-	services "backend/app/services/postgree"
+	"backend/app/models"
+	"backend/app/services"
 )
 
 var validate = validator.New()
 
-func processCreateUser(s services.UserService) fiber.Handler {
+func processCreateUser(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		req := new(models.CreateUserRequest)
 		if err := c.BodyParser(req); err != nil {
@@ -34,7 +34,7 @@ func processCreateUser(s services.UserService) fiber.Handler {
 	}
 }
 
-func processGetUserByID(s services.UserService) fiber.Handler {
+func processGetUserByID(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		idParam := c.Params("id")
 		userID, err := uuid.Parse(idParam)
@@ -51,7 +51,7 @@ func processGetUserByID(s services.UserService) fiber.Handler {
 	}
 }
 
-func processUpdateUser(s services.UserService) fiber.Handler {
+func processUpdateUser(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		idParam := c.Params("id")
 		userID, err := uuid.Parse(idParam)
@@ -72,7 +72,7 @@ func processUpdateUser(s services.UserService) fiber.Handler {
 	}
 }
 
-func processDeleteUser(s services.UserService) fiber.Handler {
+func processDeleteUser(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		idParam := c.Params("id")
 		userID, err := uuid.Parse(idParam)
@@ -88,7 +88,7 @@ func processDeleteUser(s services.UserService) fiber.Handler {
 	}
 }
 
-func processGetAllUsers(s services.UserService) fiber.Handler {
+func processGetAllUsers(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		page := c.QueryInt("page", 1)
 		limit := c.QueryInt("limit", 10)
@@ -112,7 +112,7 @@ func processGetAllUsers(s services.UserService) fiber.Handler {
 	}
 }
 
-func processUpdateUserRole(s services.UserService) fiber.Handler {
+func processUpdateUserRole(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		idParam := c.Params("id")
 		userID, err := uuid.Parse(idParam)

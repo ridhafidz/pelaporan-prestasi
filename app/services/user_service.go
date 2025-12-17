@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	models "backend/app/models/postgree"
-	repo "backend/app/repository/postgree"
+	"backend/app/models"
+	"backend/app/repository"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -22,10 +22,10 @@ type UserService interface {
 }
 
 type userService struct {
-	userRepo repo.UserRepository
+	userRepo repository.UserRepository
 }
 
-func NewUserService(userRepo repo.UserRepository) UserService {
+func NewUserService(userRepo repository.UserRepository) UserService {
 	return &userService{
 		userRepo: userRepo,
 	}

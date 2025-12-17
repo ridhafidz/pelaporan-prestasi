@@ -7,18 +7,18 @@ import (
 )
 
 type Student struct {
-	ID           uuid.UUID `json:"id" db:"id"`
-	UserID       uuid.UUID `json:"userId" db:"user_id"`
-	StudentID    string    `json:"studentId" db:"student_id"`
-	ProgramStudy string    `json:"programStudy" db:"program_study"`
-	AcademicYear string    `json:"academicYear" db:"academic_year"`
-	AdvisorID    uuid.UUID `json:"advisorId" db:"advisor_id"`
-	CreatedAt    time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt    time.Time `json:"updatedAt" db:"updated_at"`
-	Name           string `json:"name,omitempty" db:"name"`
-	Email          string `json:"email,omitempty" db:"email"`
-	EnrollmentYear int    `json:"enrollmentYear,omitempty" db:"enrollment_year"`
-	IsActive       bool   `json:"isActive,omitempty" db:"is_active"`
+	ID             uuid.UUID `json:"id" db:"id"`
+	UserID         uuid.UUID `json:"userId" db:"user_id"`
+	StudentID      string    `json:"studentId" db:"student_id"`
+	ProgramStudy   string    `json:"programStudy" db:"program_study"`
+	AcademicYear   string    `json:"academicYear" db:"academic_year"`
+	AdvisorID      uuid.UUID `json:"advisorId" db:"advisor_id"`
+	CreatedAt      time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt      time.Time `json:"updatedAt" db:"updated_at"`
+	Name           string    `json:"name,omitempty" db:"name"`
+	Email          string    `json:"email,omitempty" db:"email"`
+	EnrollmentYear int       `json:"enrollmentYear,omitempty" db:"enrollment_year"`
+	IsActive       bool      `json:"isActive,omitempty" db:"is_active"`
 }
 
 type CreateStudentRequest struct {
@@ -34,7 +34,7 @@ type UpdateAdvisorRequest struct {
 type StudentDetailResponse struct {
 	ID           uuid.UUID `json:"id"`
 	UserID       uuid.UUID `json:"userId"`
-	FullName     string    `json:"fullName"` 
+	FullName     string    `json:"fullName"`
 	StudentID    string    `json:"studentId"`
 	ProgramStudy string    `json:"programStudy"`
 	AcademicYear string    `json:"academicYear"`
