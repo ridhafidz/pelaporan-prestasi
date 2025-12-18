@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"strings"
 
 	"backend/app/utils"
@@ -38,6 +39,7 @@ func JWTMiddleware() fiber.Handler {
 
 		claims, err := utils.VerifyAccessToken(tokenString)
 		if err != nil {
+			fmt.Println("JWT VERIFY ERROR:", err.Error())
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"status":  "error",
 				"message": "invalid or expired token",

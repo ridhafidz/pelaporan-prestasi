@@ -31,45 +31,84 @@ func NewUserService(userRepo repository.UserRepository) UserService {
 	}
 }
 
-func (s *userService) CreateUser(ctx context.Context, req *models.CreateUserRequest) (*models.UserResponse, error) {
-	existingUser, _ := s.userRepo.FindByUsernameOrEmail(ctx, req.Email)
-	if existingUser != nil {
-		return nil, errors.New("email already registered")
-	}
+func (s *userService) CreateUser(
+	ctx context.Context,
+	req *models.CreateUserRequest,
+) (*models.UserResponse, error) {
 
-	existingUser, _ = s.userRepo.FindByUsernameOrEmail(ctx, req.Username)
-	if existingUser != nil {
-		return nil, errors.New("username already taken")
-	}
+	hashedPassword, _ := bcrypt.GenerateFromPassword(
+		[]byte(req.Password),
+		bcrypt.DefaultCost,
+	)
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	userID := uuid.New()
+
+	tx, err := s.userRepo.BeginTx(ctx)
 	if err != nil {
 		return nil, err
 	}
+	defer tx.Rollback()
 
 	newUser := &models.User{
-		ID:           uuid.New(),
+		ID:           userID,
 		Username:     req.Username,
 		Email:        req.Email,
 		PasswordHash: string(hashedPassword),
 		FullName:     req.FullName,
 		RoleID:       req.RoleID,
-		IsActive:     true, // Default active
+		IsActive:     true,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
 
-	err = s.userRepo.Create(ctx, newUser)
+	if err := s.userRepo.CreateTx(ctx, tx, newUser); err != nil {
+		return nil, err
+	}
+
+	roleName, err := s.userRepo.GetRoleNameByID(ctx, req.RoleID)
 	if err != nil {
 		return nil, err
 	}
 
-	createdUser, err := s.userRepo.FindByID(ctx, newUser.ID)
+	switch roleName {
+
+	case "Mahasiswa":
+		if req.StudentID == "" || req.ProgramStudy == "" || req.AcademicYear == "" {
+			return nil, errors.New("student data is required for role Mahasiswa")
+		}
+		err = s.userRepo.CreateStudentTx(ctx, tx, &models.Student{
+			ID:           uuid.New(),
+			UserID:       userID,
+			StudentID:    req.StudentID,
+			ProgramStudy: req.ProgramStudy,
+			AcademicYear: req.AcademicYear,
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+		})
+
+	case "DosenWali":
+		if req.LecturerID == "" || req.Department == "" {
+			return nil, errors.New("lecturer data is required for role DosenWali")
+		}
+		err = s.userRepo.CreateLecturerTx(ctx, tx, &models.Lecturer{
+			ID:         uuid.New(),
+			UserID:     userID,
+			LecturerID: req.LecturerID,
+			Department: req.Department,
+			CreatedAt:  time.Now(),
+		})
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	return s.mapToResponse(createdUser), nil
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	createdUser, _ := s.userRepo.FindByID(ctx, userID)
+	return s.mapToResponse(ctx, createdUser)
 }
 
 func (s *userService) GetUserByID(ctx context.Context, id uuid.UUID) (*models.UserResponse, error) {
@@ -77,11 +116,10 @@ func (s *userService) GetUserByID(ctx context.Context, id uuid.UUID) (*models.Us
 	if err != nil {
 		return nil, err
 	}
-	return s.mapToResponse(user), nil
+	return s.mapToResponse(ctx, user)
 }
 
 func (s *userService) UpdateUser(ctx context.Context, id uuid.UUID, req *models.UpdateUserRequest) error {
-	// 1. Cari user lama
 	user, err := s.userRepo.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -112,7 +150,16 @@ func (s *userService) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	return s.userRepo.Delete(ctx, id)
 }
 
-func (s *userService) mapToResponse(user *models.User) *models.UserResponse {
+func (s *userService) mapToResponse(
+	ctx context.Context,
+	user *models.User,
+) (*models.UserResponse, error) {
+
+	perms, err := s.userRepo.GetPermissionsByRoleID(ctx, user.RoleID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &models.UserResponse{
 		ID:          user.ID,
 		Username:    user.Username,
@@ -120,9 +167,10 @@ func (s *userService) mapToResponse(user *models.User) *models.UserResponse {
 		FullName:    user.FullName,
 		Role:        user.RoleName,
 		IsActive:    user.IsActive,
-		Permissions: []string{},
-	}
+		Permissions: perms,
+	}, nil
 }
+
 func (s *userService) GetAllUsers(ctx context.Context, page, limit int) ([]models.UserResponse, error) {
 	if page < 1 {
 		page = 1
@@ -140,7 +188,11 @@ func (s *userService) GetAllUsers(ctx context.Context, page, limit int) ([]model
 	var userResponses []models.UserResponse
 	for _, u := range users {
 		userTemp := u
-		userResponses = append(userResponses, *s.mapToResponse(&userTemp))
+		resp, err := s.mapToResponse(ctx, &userTemp)
+		if err != nil {
+			return nil, err
+		}
+		userResponses = append(userResponses, *resp)
 	}
 
 	return userResponses, nil

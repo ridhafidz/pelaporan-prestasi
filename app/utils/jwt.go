@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"backend/app/models"
 	"errors"
 	"os"
 	"time"
@@ -9,17 +10,8 @@ import (
 	"github.com/google/uuid"
 )
 
-type JWTClaims struct {
-	UserID      uuid.UUID `json:"user_id"`
-	Username    string    `json:"username"`
-	Role        string    `json:"role"`
-	Permissions []string  `json:"permissions"`
-	jwt.RegisteredClaims
-}
-
 func GenerateToken(userID uuid.UUID, username string, roleName string) (string, error) {
-
-	claims := JWTClaims{
+	claims := models.JWTClaims{
 		UserID:      userID,
 		Username:    username,
 		Role:        roleName,
@@ -27,6 +19,7 @@ func GenerateToken(userID uuid.UUID, username string, roleName string) (string, 
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(12 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "sistem-prestasi-mahasiswa",
 		},
 	}
 
@@ -37,21 +30,26 @@ func GenerateToken(userID uuid.UUID, username string, roleName string) (string, 
 		return "", errors.New("JWT_SECRET environment variable is not set")
 	}
 
-	t, err := token.SignedString([]byte(secret))
-	if err != nil {
-		return "", err
-	}
-
-	return t, nil
+	return token.SignedString([]byte(secret))
 }
 
-func VerifyAccessToken(tokenString string) (*JWTClaims, error) {
+func GenerateTokenWithClaims(claims *models.JWTClaims) (string, error) {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return "", errors.New("JWT_SECRET not set")
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
+func VerifyAccessToken(tokenString string) (*models.JWTClaims, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		return nil, errors.New("JWT_SECRET is not set")
 	}
 
-	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &models.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}
@@ -61,7 +59,8 @@ func VerifyAccessToken(tokenString string) (*JWTClaims, error) {
 	if err != nil {
 		return nil, err
 	}
-	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
+
+	if claims, ok := token.Claims.(*models.JWTClaims); ok && token.Valid {
 		return claims, nil
 	}
 

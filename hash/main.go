@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	hash, err := utils.HashPassword("admin123")
+	hash, err := utils.HashPassword("ciko123")
 	if err != nil {
 		panic(err)
 	}

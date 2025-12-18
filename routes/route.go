@@ -3,6 +3,7 @@ package routes
 import (
 	"os"
 
+	"backend/app/models"
 	"backend/app/service"
 	"backend/middleware"
 
@@ -18,12 +19,16 @@ func SetupRoutes(app *fiber.App, userService service.UserService, authService se
 	auth.Post("/login", processLogin(authService))
 	auth.Post("/refresh", processRefreshToken(authService))
 	auth.Post("/logout", processLogout(authService))
-	auth.Get("/profile", processGetProfile(userService))
+	auth.Get("/profile", middleware.JWTMiddleware(), processGetProfile(userService))
 
 	users := api.Group("/users")
 	users.Use(jwtware.New(jwtware.Config{
-		SigningKey: jwtware.SigningKey{Key: []byte(os.Getenv("JWT_SECRET"))},
+		SigningKey: jwtware.SigningKey{
+			Key: []byte(os.Getenv("JWT_SECRET")),
+		},
+		Claims: &models.JWTClaims{},
 	}))
+
 	users.Use(middleware.OnlyAdmin())
 	users.Get("/", processGetAllUsers(userService))
 	users.Post("/", processCreateUser(userService))
@@ -34,8 +39,12 @@ func SetupRoutes(app *fiber.App, userService service.UserService, authService se
 
 	achievements := api.Group("/achievements")
 	achievements.Use(jwtware.New(jwtware.Config{
-		SigningKey: jwtware.SigningKey{Key: []byte(os.Getenv("JWT_SECRET"))},
+		SigningKey: jwtware.SigningKey{
+			Key: []byte(os.Getenv("JWT_SECRET")),
+		},
+		Claims: &models.JWTClaims{},
 	}))
+
 	achievements.Use(middleware.OnlyMahasiswa())
 	achievements.Get("/", listAchievements(referenceService))
 	achievements.Get("/:id", getAchievementDetail(achievementService))

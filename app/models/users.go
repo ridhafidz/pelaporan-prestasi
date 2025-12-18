@@ -35,6 +35,13 @@ type CreateUserRequest struct {
 	FullName string    `json:"fullName" validate:"required,max=100"`
 	Password string    `json:"password" validate:"required,min=6"`
 	RoleID   uuid.UUID `json:"roleId" validate:"required"`
+
+	StudentID    string `json:"studentId,omitempty"`
+	ProgramStudy string `json:"programStudy,omitempty"`
+	AcademicYear string `json:"academicYear,omitempty"`
+
+	LecturerID string `json:"lecturerId,omitempty"`
+	Department string `json:"department,omitempty"`
 }
 
 type UpdateUserRequest struct {

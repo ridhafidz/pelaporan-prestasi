@@ -1,11 +1,14 @@
 package routes
 
 import (
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
 	"backend/app/models"
-	"backend/app/service" 
+	"backend/app/service"
+	"backend/middleware"
 )
 
 func processLogin(s service.AuthService) fiber.Handler {
@@ -34,48 +37,78 @@ func processLogin(s service.AuthService) fiber.Handler {
 
 func processRefreshToken(s service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		req := new(models.RefreshTokenRequest)
 
-		if err := c.BodyParser(req); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid request body"})
+		authHeader := c.Get("Authorization")
+		if authHeader == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Authorization header missing",
+			})
 		}
 
-		if err := validate.Struct(req); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": err.Error()})
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Invalid authorization format",
+			})
 		}
 
-		resp, err := s.RefreshToken(c.Context(), *req)
+		refreshToken := parts[1]
+
+		resp, err := s.RefreshToken(c.Context(), refreshToken)
 		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": err.Error()})
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"status":  "error",
+				"message": err.Error(),
+			})
 		}
 
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "data": resp})
+		return c.Status(fiber.StatusOK).JSON(resp)
 	}
 }
 
 func processLogout(s service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Missing token"})
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Missing Authorization header",
+			})
+		}
+
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Invalid authorization format",
+			})
 		}
 
 		req := models.LogoutRequest{
-			RefreshToken: authHeader, 
+			RefreshToken: parts[1],
 		}
 
 		if err := s.Logout(c.Context(), req); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"status":  "error",
+				"message": err.Error(),
+			})
 		}
 
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "success", "message": "Logged out successfully"})
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"status":  "success",
+			"message": "Logged out successfully",
+		})
 	}
 }
 
 func processGetProfile(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 
-		userIDVal := c.Locals("userID")
+		userIDVal := c.Locals(middleware.UserIDKey)
 		if userIDVal == nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "error", "message": "Unauthorized"})
 		}

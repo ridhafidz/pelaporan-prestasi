@@ -11,6 +11,8 @@ import (
 type AuthRepository interface {
 	FindByUsername(ctx context.Context, username string) (*models.User, error)
 	GetPermissionsByRoleID(ctx context.Context, roleID uuid.UUID) ([]string, error)
+	GetStudentIDByUserID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
+	GetLecturerIDByUserID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
 	StoreRefreshToken(ctx context.Context, token models.RefreshToken) error
 	GetRefreshToken(ctx context.Context, token string) (*models.RefreshToken, error)
 	DeleteRefreshToken(ctx context.Context, token string) error
@@ -66,6 +68,28 @@ func (r *authRepository) GetPermissionsByRoleID(ctx context.Context, roleID uuid
 		permissions = append(permissions, perm)
 	}
 	return permissions, nil
+}
+
+func (r *authRepository) GetStudentIDByUserID(
+	ctx context.Context,
+	userID uuid.UUID,
+) (uuid.UUID, error) {
+
+	query := `SELECT id FROM students WHERE user_id = $1`
+	var id uuid.UUID
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&id)
+	return id, err
+}
+
+func (r *authRepository) GetLecturerIDByUserID(
+	ctx context.Context,
+	userID uuid.UUID,
+) (uuid.UUID, error) {
+
+	query := `SELECT id FROM lecturers WHERE user_id = $1`
+	var id uuid.UUID
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&id)
+	return id, err
 }
 
 func (r *authRepository) StoreRefreshToken(ctx context.Context, token models.RefreshToken) error {

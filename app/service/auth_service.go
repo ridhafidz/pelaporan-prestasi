@@ -1,44 +1,48 @@
 package service
 
 import (
-	"backend/app/models"
-	"backend/app/repository"
 	"context"
 	"errors"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"backend/app/models"
+	"backend/app/repository"
+	"backend/app/utils"
+
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService interface {
 	Login(ctx context.Context, req models.LoginRequest) (*models.LoginResponse, error)
-	RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (*models.RefreshTokenResponse, error)
+	RefreshToken(ctx context.Context, refreshToken string) (*models.RefreshTokenResponse, error)
 	Logout(ctx context.Context, req models.LogoutRequest) error
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.UserData, error)
 }
 
 type authService struct {
-	authrepo  repository.AuthRepository
-	jwtSecret []byte
+	authrepo repository.AuthRepository
 }
 
-func NewAuthService(repo repository.AuthRepository, secret string) AuthService {
-	return &authService{
-		authrepo:  repo,
-		jwtSecret: []byte(secret),
-	}
+func NewAuthService(repo repository.AuthRepository) AuthService {
+	return &authService{authrepo: repo}
 }
 
-func (s *authService) Login(ctx context.Context, req models.LoginRequest) (*models.LoginResponse, error) {
+func (s *authService) Login(
+	ctx context.Context,
+	req models.LoginRequest,
+) (*models.LoginResponse, error) {
+
 	user, err := s.authrepo.FindByUsername(ctx, req.Username)
 	if err != nil {
 		return nil, errors.New("invalid credentials")
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
-	if err != nil {
+	if err := bcrypt.CompareHashAndPassword(
+		[]byte(user.PasswordHash),
+		[]byte(req.Password),
+	); err != nil {
 		return nil, errors.New("invalid credentials")
 	}
 
@@ -47,24 +51,62 @@ func (s *authService) Login(ctx context.Context, req models.LoginRequest) (*mode
 		return nil, err
 	}
 
-	accessToken, err := s.generateToken(user, permissions, 15*time.Minute)
+	claims := &models.JWTClaims{
+		UserID:      user.ID,
+		Username:    user.Username,
+		Role:        user.RoleName,
+		Permissions: permissions,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(12 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "sistem-prestasi-mahasiswa",
+		},
+	}
+
+	refreshTokenClaims := &models.JWTClaims{
+		UserID: user.ID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(7 * 24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "sistem-prestasi-mahasiswa",
+		},
+	}
+
+	refreshToken, err := utils.GenerateTokenWithClaims(refreshTokenClaims)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshTokenStr, err := s.generateToken(user, permissions, 7*24*time.Hour)
+	switch user.RoleName {
+	case "Mahasiswa":
+		studentID, err := s.authrepo.GetStudentIDByUserID(ctx, user.ID)
+		if err != nil {
+			return nil, errors.New("student profile not found")
+		}
+		claims.StudentID = &studentID
+
+	case "DosenWali":
+		lecturerID, err := s.authrepo.GetLecturerIDByUserID(ctx, user.ID)
+		if err != nil {
+			return nil, errors.New("lecturer profile not found")
+		}
+		claims.LecturerID = &lecturerID
+	}
+
+	accessToken, err := utils.GenerateTokenWithClaims(claims)
 	if err != nil {
 		return nil, err
 	}
 
-	refTokenModel := models.RefreshToken{
+	refToken := models.RefreshToken{
 		ID:        uuid.New(),
 		UserID:    user.ID,
-		Token:     refreshTokenStr,
+		Token:     refreshToken,
 		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 		CreatedAt: time.Now(),
 	}
-	if err := s.authrepo.StoreRefreshToken(ctx, refTokenModel); err != nil {
+
+	if err := s.authrepo.StoreRefreshToken(ctx, refToken); err != nil {
 		return nil, err
 	}
 
@@ -76,7 +118,7 @@ func (s *authService) Login(ctx context.Context, req models.LoginRequest) (*mode
 			User         models.UserData `json:"user"`
 		}{
 			Token:        accessToken,
-			RefreshToken: refreshTokenStr,
+			RefreshToken: refreshToken,
 			User: models.UserData{
 				ID:          user.ID,
 				Username:    user.Username,
@@ -88,22 +130,59 @@ func (s *authService) Login(ctx context.Context, req models.LoginRequest) (*mode
 	}, nil
 }
 
-func (s *authService) RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (*models.RefreshTokenResponse, error) {
-	storedToken, err := s.authrepo.GetRefreshToken(ctx, req.RefreshToken)
+func (s *authService) RefreshToken(
+	ctx context.Context,
+	refreshToken string,
+) (*models.RefreshTokenResponse, error) {
+
+	stored, err := s.authrepo.GetRefreshToken(ctx, refreshToken)
 	if err != nil {
 		return nil, errors.New("invalid refresh token")
 	}
 
-	if time.Now().After(storedToken.ExpiresAt) {
+	if time.Now().After(stored.ExpiresAt) {
 		return nil, errors.New("refresh token expired")
 	}
-	user, err := s.authrepo.FindByID(ctx, storedToken.UserID)
+
+	user, err := s.authrepo.FindByID(ctx, stored.UserID)
 	if err != nil {
 		return nil, err
 	}
-	permissions, _ := s.authrepo.GetPermissionsByRoleID(ctx, user.RoleID)
 
-	newAccessToken, err := s.generateToken(user, permissions, 15*time.Minute)
+	permissions, err := s.authrepo.GetPermissionsByRoleID(ctx, user.RoleID)
+	if err != nil {
+		return nil, err
+	}
+
+	claims := &models.JWTClaims{
+		UserID:      user.ID,
+		Username:    user.Username,
+		Role:        user.RoleName,
+		Permissions: permissions,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(12 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "sistem-prestasi-mahasiswa",
+		},
+	}
+
+	switch user.RoleName {
+	case "Mahasiswa":
+		studentID, err := s.authrepo.GetStudentIDByUserID(ctx, user.ID)
+		if err != nil {
+			return nil, errors.New("student profile not found")
+		}
+		claims.StudentID = &studentID
+
+	case "DosenWali":
+		lecturerID, err := s.authrepo.GetLecturerIDByUserID(ctx, user.ID)
+		if err != nil {
+			return nil, errors.New("lecturer profile not found")
+		}
+		claims.LecturerID = &lecturerID
+	}
+
+	newAccessToken, err := utils.GenerateTokenWithClaims(claims)
 	if err != nil {
 		return nil, err
 	}
@@ -115,20 +194,28 @@ func (s *authService) RefreshToken(ctx context.Context, req models.RefreshTokenR
 			RefreshToken string `json:"refreshToken"`
 		}{
 			Token:        newAccessToken,
-			RefreshToken: req.RefreshToken,
+			RefreshToken: refreshToken,
 		},
 	}, nil
 }
 
-func (s *authService) Logout(ctx context.Context, req models.LogoutRequest) error {
+func (s *authService) Logout(
+	ctx context.Context,
+	req models.LogoutRequest,
+) error {
 	return s.authrepo.DeleteRefreshToken(ctx, req.RefreshToken)
 }
 
-func (s *authService) GetProfile(ctx context.Context, userID uuid.UUID) (*models.UserData, error) {
+func (s *authService) GetProfile(
+	ctx context.Context,
+	userID uuid.UUID,
+) (*models.UserData, error) {
+
 	user, err := s.authrepo.FindByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
+
 	permissions, _ := s.authrepo.GetPermissionsByRoleID(ctx, user.RoleID)
 
 	return &models.UserData{
@@ -138,21 +225,4 @@ func (s *authService) GetProfile(ctx context.Context, userID uuid.UUID) (*models
 		Role:        user.RoleName,
 		Permissions: permissions,
 	}, nil
-}
-
-func (s *authService) generateToken(user *models.User, permissions []string, ttl time.Duration) (string, error) {
-	claims := models.UserClaims{
-		UserID:      user.ID,
-		Username:    user.Username,
-		Role:        user.RoleName,
-		Permissions: permissions,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(ttl)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    "sistem-prestasi-mahasiswa",
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(s.jwtSecret)
 }

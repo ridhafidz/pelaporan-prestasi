@@ -51,11 +51,13 @@ type Achievement struct {
 	AchievementType string             `json:"achievementType" bson:"achievementType" validate:"required"`
 	Title           string             `json:"title" bson:"title" validate:"required"`
 	Description     string             `json:"description" bson:"description"`
+
 	Details      DynamicDetails `json:"details" bson:"details"`
 	CustomFields primitive.M    `json:"customFields,omitempty" bson:"customFields,omitempty"`
 	Attachments []Attachment `json:"attachments" bson:"attachments"`
 	Tags        []string     `json:"tags" bson:"tags"`
-	Points      float64      `json:"points" bson:"points"` // Poin SKP/Prestasi
+	Points      float64      `json:"points" bson:"points"`
+	
 	CreatedAt time.Time  `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time  `json:"updatedAt" bson:"updatedAt"`
 	DeletedAt *time.Time `json:"deletedAt,omitempty" bson:"deletedAt,omitempty"`

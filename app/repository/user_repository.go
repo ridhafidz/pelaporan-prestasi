@@ -15,8 +15,15 @@ type UserRepository interface {
 	FindAll(ctx context.Context, limit int, offset int) ([]models.User, error)
 	FindByUsernameOrEmail(ctx context.Context, email string) (*models.User, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*models.User, error)
+	GetPermissionsByRoleID(ctx context.Context, roleID uuid.UUID) ([]string, error)
 	Update(ctx context.Context, user *models.User) error
 	Delete(ctx context.Context, id uuid.UUID) error
+
+	BeginTx(ctx context.Context) (*sql.Tx, error)
+	CreateTx(ctx context.Context, tx *sql.Tx, user *models.User) error
+	GetRoleNameByID(ctx context.Context, roleID uuid.UUID) (string, error)
+	CreateStudentTx(ctx context.Context, tx *sql.Tx, student *models.Student) error
+	CreateLecturerTx(ctx context.Context, tx *sql.Tx, lecturer *models.Lecturer) error
 }
 
 type userRepository struct {
@@ -67,7 +74,7 @@ func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.Us
 		&user.PasswordHash,
 		&user.FullName,
 		&user.RoleID,
-		&user.RoleName, // Ensure this exists in your struct, or use a temp var
+		&user.RoleName,
 		&user.IsActive,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -108,11 +115,41 @@ func (r *userRepository) FindByUsernameOrEmail(ctx context.Context, identity str
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil // Return nil if not found, as per service logic check
+			return nil, nil
 		}
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *userRepository) GetPermissionsByRoleID(
+	ctx context.Context,
+	roleID uuid.UUID,
+) ([]string, error) {
+
+	query := `
+		SELECT p.name
+		FROM role_permissions rp
+		JOIN permissions p ON p.id = rp.permission_id
+		WHERE rp.role_id = $1
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, roleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var permissions []string
+	for rows.Next() {
+		var perm string
+		if err := rows.Scan(&perm); err != nil {
+			return nil, err
+		}
+		permissions = append(permissions, perm)
+	}
+
+	return permissions, nil
 }
 
 func (r *userRepository) Update(ctx context.Context, user *models.User) error {
@@ -176,3 +213,103 @@ func (r *userRepository) FindAll(ctx context.Context, limit int, offset int) ([]
 	}
 	return users, nil
 }
+
+func (r *userRepository) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	return r.db.BeginTx(ctx, nil)
+}
+
+func (r *userRepository) CreateTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	user *models.User,
+) error {
+
+	query := `
+		INSERT INTO users (
+			id, username, email, password_hash,
+			full_name, role_id, is_active,
+			created_at, updated_at
+		)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+	`
+
+	_, err := tx.ExecContext(ctx, query,
+		user.ID,
+		user.Username,
+		user.Email,
+		user.PasswordHash,
+		user.FullName,
+		user.RoleID,
+		user.IsActive,
+		user.CreatedAt,
+		user.UpdatedAt,
+	)
+
+	return err
+}
+
+func (r *userRepository) GetRoleNameByID(
+	ctx context.Context,
+	roleID uuid.UUID,
+) (string, error) {
+
+	query := `SELECT name FROM roles WHERE id = $1`
+
+	var roleName string
+	err := r.db.QueryRowContext(ctx, query, roleID).Scan(&roleName)
+	return roleName, err
+}
+
+func (r *userRepository) CreateStudentTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	student *models.Student,
+) error {
+
+	query := `
+		INSERT INTO students (
+			id, user_id, student_id,
+			program_study, academic_year,
+			created_at, updated_at
+		)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)
+	`
+
+	_, err := tx.ExecContext(ctx, query,
+		student.ID,
+		student.UserID,
+		student.StudentID,
+		student.ProgramStudy,
+		student.AcademicYear,
+		student.CreatedAt,
+		student.UpdatedAt,
+	)
+
+	return err
+}
+
+func (r *userRepository) CreateLecturerTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	lecturer *models.Lecturer,
+) error {
+
+	query := `
+		INSERT INTO lecturers (
+			id, user_id, lecturer_id,
+			department, created_at
+		)
+		VALUES ($1,$2,$3,$4,$5)
+	`
+
+	_, err := tx.ExecContext(ctx, query,
+		lecturer.ID,
+		lecturer.UserID,
+		lecturer.LecturerID,
+		lecturer.Department,
+		lecturer.CreatedAt,
+	)
+
+	return err
+}
+

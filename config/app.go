@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -18,6 +19,7 @@ type Application struct {
 
 func InitApp() *Application {
 	LoadENV()
+	fmt.Println("SECRET KEY:", os.Getenv("JWT_SECRET"))
 
 	database.ConnectPostgres()
 	database.ConnectMongo()
@@ -38,7 +40,7 @@ func InitApp() *Application {
 		log.Fatal("❌ JWT_SECRET is not set")
 	}
 
-	authService := service.NewAuthService(authRepo, jwtSecret)
+	authService := service.NewAuthService(authRepo)
 	userService := service.NewUserService(userRepo)
 
 	achievementService := service.NewAchievementService(achievementRepo)

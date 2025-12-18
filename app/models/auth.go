@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -17,10 +17,6 @@ type RegisterRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=6"`
 	FullName string `json:"fullName" validate:"required"`
-}
-
-type RefreshTokenRequest struct {
-	RefreshToken string `json:"refreshToken" validate:"required"`
 }
 
 type LogoutRequest struct {
@@ -65,11 +61,16 @@ type LogoutResponse struct {
 	Message string `json:"message"`
 }
 
-type UserClaims struct {
-	UserID      uuid.UUID `json:"userId"`
-	Username    string    `json:"username"`
-	Role        string    `json:"role"`
-	Permissions []string  `json:"permissions"`
+type JWTClaims struct {
+	UserID   uuid.UUID `json:"user_id"`
+	Username string    `json:"username"`
+	Role     string    `json:"role"`
+
+	StudentID  *uuid.UUID `json:"student_id,omitempty"`
+	LecturerID *uuid.UUID `json:"lecturer_id,omitempty"`
+
+	Permissions []string `json:"permissions,omitempty"`
+
 	jwt.RegisteredClaims
 }
 
