@@ -37,3 +37,36 @@ type CreateAchievementReferenceRequest struct {
 type RejectAchievementRequest struct {
 	RejectionNote string `json:"rejectionNote" validate:"required"`
 }
+
+type AchievementTypeStat struct {
+	AchievementType string `json:"achievementType"`
+	Total           int    `json:"total"`
+}
+
+type AchievementPeriodStat struct {
+	Period string `json:"period"` // contoh: 2024-01
+	Total  int    `json:"total"`
+}
+
+type TopStudentStat struct {
+	StudentID  uuid.UUID `json:"studentId"`
+	FullName   string    `json:"fullName"`
+	TotalPoint float64   `json:"totalPoint"`
+}
+
+type CompetitionLevelStat struct {
+	Level string `json:"level"`
+	Total int    `json:"total"`
+}
+
+type AchievementStatisticsResponse struct {
+	ByType            []AchievementTypeStat   `json:"byType"`
+	ByPeriod          []AchievementPeriodStat `json:"byPeriod"`
+	TopStudents       []TopStudentStat        `json:"topStudents"`
+	CompetitionLevels []CompetitionLevelStat  `json:"competitionLevels"`
+}
+
+type StudentReportResponse struct {
+	StudentID  uuid.UUID `json:"studentId"`
+	TotalPoint float64   `json:"totalPoint"`
+}

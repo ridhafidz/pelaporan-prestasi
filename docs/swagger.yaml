@@ -1,0 +1,1112 @@
+definitions:
+  models.Achievement:
+    properties:
+      achievementType:
+        type: string
+      attachments:
+        items:
+          $ref: '#/definitions/models.Attachment'
+        type: array
+      createdAt:
+        type: string
+      customFields:
+        additionalProperties: true
+        type: object
+      deletedAt:
+        type: string
+      description:
+        type: string
+      details:
+        $ref: '#/definitions/models.DynamicDetails'
+      id:
+        type: string
+      is_deleted:
+        type: boolean
+      points:
+        type: number
+      studentId:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      updatedAt:
+        type: string
+    required:
+    - achievementType
+    - studentId
+    - title
+    type: object
+  models.AchievementPeriodStat:
+    properties:
+      period:
+        description: 'contoh: 2024-01'
+        type: string
+      total:
+        type: integer
+    type: object
+  models.AchievementReference:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: string
+      mongoAchievementId:
+        type: string
+      rejectionNote:
+        type: string
+      status:
+        $ref: '#/definitions/models.AchievementStatus'
+      studentId:
+        type: string
+      submittedAt:
+        type: string
+      updatedAt:
+        type: string
+      verifiedAt:
+        type: string
+      verifiedBy:
+        type: string
+    type: object
+  models.AchievementStatisticsResponse:
+    properties:
+      byPeriod:
+        items:
+          $ref: '#/definitions/models.AchievementPeriodStat'
+        type: array
+      byType:
+        items:
+          $ref: '#/definitions/models.AchievementTypeStat'
+        type: array
+      competitionLevels:
+        items:
+          $ref: '#/definitions/models.CompetitionLevelStat'
+        type: array
+      topStudents:
+        items:
+          $ref: '#/definitions/models.TopStudentStat'
+        type: array
+    type: object
+  models.AchievementStatus:
+    enum:
+    - draft
+    - submitted
+    - verified
+    - rejected
+    - deleted
+    type: string
+    x-enum-varnames:
+    - StatusDraft
+    - StatusSubmitted
+    - StatusVerified
+    - StatusRejected
+    - StatusDeleted
+  models.AchievementTypeStat:
+    properties:
+      achievementType:
+        type: string
+      total:
+        type: integer
+    type: object
+  models.Attachment:
+    properties:
+      fileName:
+        type: string
+      fileType:
+        type: string
+      fileUrl:
+        type: string
+      uploadedAt:
+        type: string
+    required:
+    - fileName
+    - fileUrl
+    type: object
+  models.CompetitionLevelStat:
+    properties:
+      level:
+        type: string
+      total:
+        type: integer
+    type: object
+  models.CreateUserRequest:
+    properties:
+      academicYear:
+        type: string
+      department:
+        type: string
+      email:
+        maxLength: 100
+        type: string
+      fullName:
+        maxLength: 100
+        type: string
+      lecturerId:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      programStudy:
+        type: string
+      roleId:
+        type: string
+      studentId:
+        type: string
+      username:
+        maxLength: 50
+        type: string
+    required:
+    - email
+    - fullName
+    - password
+    - roleId
+    - username
+    type: object
+  models.DynamicDetails:
+    properties:
+      authors:
+        items:
+          type: string
+        type: array
+      certificationName:
+        type: string
+      certificationNumber:
+        type: string
+      competitionLevel:
+        type: string
+      competitionName:
+        type: string
+      eventDate:
+        type: string
+      issn:
+        type: string
+      issuedBy:
+        type: string
+      location:
+        type: string
+      medalType:
+        type: string
+      organizationName:
+        type: string
+      organizer:
+        type: string
+      period:
+        $ref: '#/definitions/models.Period'
+      position:
+        type: string
+      publicationTitle:
+        type: string
+      publicationType:
+        type: string
+      publisher:
+        type: string
+      rank:
+        type: integer
+      score:
+        type: number
+      validUntil:
+        type: string
+    type: object
+  models.LecturerDetailResponse:
+    properties:
+      department:
+        type: string
+      fullName:
+        description: Diambil dari tabel users
+        type: string
+      id:
+        type: string
+      lecturerId:
+        type: string
+      userId:
+        type: string
+    type: object
+  models.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  models.LoginResponse:
+    properties:
+      data:
+        properties:
+          refreshToken:
+            type: string
+          token:
+            type: string
+          user:
+            $ref: '#/definitions/models.UserData'
+        type: object
+      status:
+        type: string
+    type: object
+  models.Period:
+    properties:
+      end:
+        type: string
+      start:
+        type: string
+    type: object
+  models.RefreshTokenResponse:
+    properties:
+      data:
+        properties:
+          refreshToken:
+            type: string
+          token:
+            type: string
+        type: object
+      status:
+        type: string
+    type: object
+  models.StudentAchievementResponse:
+    properties:
+      achievement_id:
+        type: string
+      status:
+        type: string
+      submittedAt:
+        type: string
+      title:
+        type: string
+      verifiedAt:
+        type: string
+    type: object
+  models.StudentDetailResponse:
+    properties:
+      academicYear:
+        type: string
+      advisorName:
+        type: string
+      fullName:
+        type: string
+      id:
+        type: string
+      programStudy:
+        type: string
+      studentId:
+        type: string
+      userId:
+        type: string
+    type: object
+  models.StudentReportResponse:
+    properties:
+      studentId:
+        type: string
+      totalPoint:
+        type: number
+    type: object
+  models.TopStudentStat:
+    properties:
+      fullName:
+        type: string
+      studentId:
+        type: string
+      totalPoint:
+        type: number
+    type: object
+  models.UpdateAdvisorRequest:
+    properties:
+      advisorId:
+        type: string
+    type: object
+  models.UpdateUserRequest:
+    properties:
+      email:
+        maxLength: 100
+        type: string
+      fullName:
+        maxLength: 100
+        type: string
+      isActive:
+        type: boolean
+      roleId:
+        type: string
+      username:
+        maxLength: 50
+        type: string
+    type: object
+  models.UpdateUserRoleRequest:
+    properties:
+      roleId:
+        type: string
+    required:
+    - roleId
+    type: object
+  models.UserData:
+    properties:
+      fullName:
+        type: string
+      id:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+  models.UserResponse:
+    properties:
+      email:
+        type: string
+      fullName:
+        type: string
+      id:
+        type: string
+      isActive:
+        type: boolean
+      permissions:
+        items:
+          type: string
+        type: array
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: API Server untuk manajemen dan pelaporan prestasi mahasiswa.
+  title: Sistem Pelaporan Prestasi API
+  version: "1.0"
+paths:
+  /api/v1/achievements:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of achievement references for the logged-in student
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.AchievementReference'
+            type: array
+      security:
+      - ApiKeyAuth: []
+      summary: List Achievements
+      tags:
+      - Achievements
+    post:
+      consumes:
+      - application/json
+      description: Create a new achievement record (Mahasiswa only)
+      parameters:
+      - description: Achievement Data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Achievement'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Returns Mongo ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Create Achievement
+      tags:
+      - Achievements
+  /api/v1/achievements/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete achievement from system (Mahasiswa only)
+      parameters:
+      - description: Mongo Achievement ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Delete Achievement
+      tags:
+      - Achievements
+    get:
+      consumes:
+      - application/json
+      description: Retrieve full details of an achievement from MongoDB
+      parameters:
+      - description: Mongo Achievement ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Achievement'
+      security:
+      - ApiKeyAuth: []
+      summary: Get Achievement Detail
+      tags:
+      - Achievements
+    put:
+      consumes:
+      - application/json
+      description: Update draft achievement details (Mahasiswa only)
+      parameters:
+      - description: Mongo Achievement ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated Achievement Data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Achievement'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Update Achievement
+      tags:
+      - Achievements
+  /api/v1/achievements/{id}/attachments:
+    post:
+      consumes:
+      - application/json
+      description: Upload/Add file URL to an achievement
+      parameters:
+      - description: Mongo Achievement ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Attachment data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.Attachment'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Add Attachment
+      tags:
+      - Achievements
+  /api/v1/achievements/{id}/history:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve status history and metadata of an achievement
+      parameters:
+      - description: Mongo Achievement ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AchievementReference'
+      security:
+      - ApiKeyAuth: []
+      summary: Get Achievement History
+      tags:
+      - Achievements
+  /api/v1/achievements/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      description: Reject achievement with a note (Dosen Wali only)
+      parameters:
+      - description: Mongo Achievement ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rejection note
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Reject Achievement
+      tags:
+      - Achievements
+  /api/v1/achievements/{id}/submit:
+    post:
+      consumes:
+      - application/json
+      description: Change status from Draft to Submitted for verification
+      parameters:
+      - description: Mongo Achievement ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Submit Achievement
+      tags:
+      - Achievements
+  /api/v1/achievements/{id}/verify:
+    post:
+      consumes:
+      - application/json
+      description: Approve achievement and assign points (Dosen Wali only)
+      parameters:
+      - description: Mongo Achievement ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Points data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Verify Achievement
+      tags:
+      - Achievements
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return access & refresh tokens
+      parameters:
+      - description: Login Credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LoginResponse'
+        "401":
+          description: Invalid email or password
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: User Login
+      tags:
+      - Authentication
+  /api/v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidate the current refresh token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logged out successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: User Logout
+      tags:
+      - Authentication
+  /api/v1/auth/profile:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve the logged-in user's profile information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserData'
+        "404":
+          description: User not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get Current Profile
+      tags:
+      - Authentication
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Get a new access token using a valid refresh token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RefreshTokenResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Refresh Token
+      tags:
+      - Authentication
+  /api/v1/lecturers:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all lecturers in the system
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LecturerDetailResponse'
+            type: array
+      security:
+      - ApiKeyAuth: []
+      summary: List All Lecturers
+      tags:
+      - Students & Lecturers
+  /api/v1/lecturers/{id}/advisees:
+    get:
+      consumes:
+      - application/json
+      description: List all students assigned to a specific lecturer
+      parameters:
+      - description: Lecturer UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.StudentDetailResponse'
+            type: array
+      security:
+      - ApiKeyAuth: []
+      summary: Get Lecturer Advisees
+      tags:
+      - Students & Lecturers
+  /api/v1/reports/statistics:
+    get:
+      consumes:
+      - application/json
+      description: 'Retrieve statistics based on role (Admin: Global, Dosen Wali:
+        Advisees, Mahasiswa: Own).'
+      parameters:
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: start
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: end
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.AchievementStatisticsResponse'
+        "403":
+          description: Invalid role or access denied
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get Achievement Statistics
+      tags:
+      - Reports
+  /api/v1/reports/student/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get total points and student details (Accessible by Mhs for own,
+        Dosen for advisees).
+      parameters:
+      - description: Student UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.StudentReportResponse'
+        "403":
+          description: Access denied
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get Student Individual Report
+      tags:
+      - Reports
+  /api/v1/students:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all students with their advisors (Admin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.StudentDetailResponse'
+            type: array
+      security:
+      - ApiKeyAuth: []
+      summary: List All Students
+      tags:
+      - Students & Lecturers
+  /api/v1/students/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information of a student by their UUID
+      parameters:
+      - description: Student UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.StudentDetailResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get Student Detail
+      tags:
+      - Students & Lecturers
+  /api/v1/students/{id}/achievements:
+    get:
+      consumes:
+      - application/json
+      description: List all achievement status and points for a specific student
+      parameters:
+      - description: Student UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.StudentAchievementResponse'
+            type: array
+      security:
+      - ApiKeyAuth: []
+      summary: Get Student Achievements
+      tags:
+      - Students & Lecturers
+  /api/v1/students/{id}/advisor:
+    put:
+      consumes:
+      - application/json
+      description: Assign a lecturer as an advisor to a student (Admin only)
+      parameters:
+      - description: Student UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Lecturer ID
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateAdvisorRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'message: advisor updated successfully'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Assign/Update Advisor
+      tags:
+      - Students & Lecturers
+  /api/v1/users:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a paginated list of all registered users
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: List all users
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      description: Create a new user record in the system (Admin only)
+      parameters:
+      - description: User Data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Email/Username already taken
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new user
+      tags:
+      - Users
+  /api/v1/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove user from the system
+      parameters:
+      - description: User UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User deleted successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Delete user
+      tags:
+      - Users
+    get:
+      consumes:
+      - application/json
+      description: Retrieve detailed information of a specific user
+      parameters:
+      - description: User UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserResponse'
+        "404":
+          description: User not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get user by ID
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Update user personal information
+      parameters:
+      - description: User UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated User Data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User updated successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Update user
+      tags:
+      - Users
+  /api/v1/users/{id}/role:
+    put:
+      consumes:
+      - application/json
+      description: Change the access role of a user
+      parameters:
+      - description: User UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role Data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateUserRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User role updated successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Update user role
+      tags:
+      - Users
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

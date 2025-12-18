@@ -45,6 +45,7 @@ type DynamicDetails struct {
 	Score     float64   `json:"score,omitempty" bson:"score,omitempty"`
 }
 
+// @Schema primitive.M map[string]interface{}
 type Achievement struct {
 	ID              primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	StudentID       string             `json:"studentId" bson:"studentId" validate:"required"`
@@ -52,12 +53,12 @@ type Achievement struct {
 	Title           string             `json:"title" bson:"title" validate:"required"`
 	Description     string             `json:"description" bson:"description"`
 
-	Details      DynamicDetails `json:"details" bson:"details"`
-	CustomFields primitive.M    `json:"customFields,omitempty" bson:"customFields,omitempty"`
-	Attachments []Attachment `json:"attachments" bson:"attachments"`
-	Tags        []string     `json:"tags" bson:"tags"`
-	Points      float64      `json:"points" bson:"points"`
-	
+	Details      DynamicDetails         `json:"details" bson:"details"`
+	CustomFields map[string]interface{} `json:"customFields,omitempty" bson:"customFields,omitempty"`
+	Attachments  []Attachment           `json:"attachments" bson:"attachments"`
+	Tags         []string               `json:"tags" bson:"tags"`
+	Points       float64                `json:"points" bson:"points"`
+
 	CreatedAt time.Time  `json:"createdAt" bson:"createdAt"`
 	UpdatedAt time.Time  `json:"updatedAt" bson:"updatedAt"`
 	DeletedAt *time.Time `json:"deletedAt,omitempty" bson:"deletedAt,omitempty"`

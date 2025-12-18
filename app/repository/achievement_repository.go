@@ -15,6 +15,7 @@ type AchievementRepository interface {
 	Create(ctx context.Context, achievement *models.Achievement) (string, error)
 	FindByID(ctx context.Context, id string) (*models.Achievement, error)
 	AddAttachment(ctx context.Context, id string, attachment models.Attachment) error
+	UpdatePoints(ctx context.Context, id string, points float64) error
 	Update(ctx context.Context, id string, achievement *models.Achievement) error
 	SoftDelete(ctx context.Context, id string) error
 }
@@ -65,6 +66,23 @@ func (r *achievementRepository) AddAttachment(ctx context.Context, id string, at
 		"$set":  bson.M{"updatedAt": time.Now()},
 	}
 	_, err := r.collection.UpdateOne(ctx, filter, update)
+	return err
+}
+
+func (r *achievementRepository) UpdatePoints(ctx context.Context, id string, points float64) error {
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"points":    points,
+			"updatedAt": time.Now(),
+		},
+	}
+
+	_, err = r.collection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 	return err
 }
 

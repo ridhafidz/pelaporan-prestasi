@@ -17,6 +17,8 @@ type StudentLecturerRepository interface {
 
 	GetAllLecturers(ctx context.Context) ([]models.LecturerDetailResponse, error)
 	GetLecturerAdvisees(ctx context.Context, lecturerID uuid.UUID) ([]models.StudentDetailResponse, error)
+	GetLecturerByUserID(ctx context.Context, userID uuid.UUID) (*models.LecturerDetailResponse, error)
+	IsAdvisorOf(ctx context.Context, advisorUserID uuid.UUID, studentID uuid.UUID) (bool, error)
 }
 
 type studentLecturerRepository struct {
@@ -257,4 +259,31 @@ func (r *studentLecturerRepository) GetLecturerAdvisees(
 	}
 
 	return result, nil
+}
+
+func (r *studentLecturerRepository) GetLecturerByUserID(ctx context.Context, userID uuid.UUID) (*models.LecturerDetailResponse, error) {
+	query := `
+        SELECT l.id, l.user_id, u.full_name, l.lecturer_id, l.department
+        FROM lecturers l
+        JOIN users u ON u.id = l.user_id
+        WHERE l.user_id = $1`
+
+	var l models.LecturerDetailResponse
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&l.ID, &l.UserID, &l.FullName, &l.LecturerID, &l.Department)
+	if err != nil {
+		return nil, err
+	}
+	return &l, nil
+}
+
+func (r *studentLecturerRepository) IsAdvisorOf(ctx context.Context, advisorUserID uuid.UUID, studentID uuid.UUID) (bool, error) {
+	query := `
+        SELECT EXISTS (
+            SELECT 1 FROM students s
+            JOIN lecturers l ON s.advisor_id = l.id
+            WHERE l.user_id = $1 AND s.id = $2
+        )`
+	var exists bool
+	err := r.db.QueryRowContext(ctx, query, advisorUserID, studentID).Scan(&exists)
+	return exists, err
 }

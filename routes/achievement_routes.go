@@ -10,6 +10,15 @@ import (
 	"github.com/google/uuid"
 )
 
+// listAchievements godoc
+// @Summary      List Achievements
+// @Description  Get a list of achievement references for the logged-in student
+// @Tags         Achievements
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Success      200  {array}   models.AchievementReference
+// @Router       /api/v1/achievements [get]
 func listAchievements(
 	refService service.AchievementReferenceService,
 ) fiber.Handler {
@@ -30,6 +39,16 @@ func listAchievements(
 	}
 }
 
+// getAchievementDetail godoc
+// @Summary      Get Achievement Detail
+// @Description  Retrieve full details of an achievement from MongoDB
+// @Tags         Achievements
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Mongo Achievement ID"
+// @Security     ApiKeyAuth
+// @Success      200  {object}  models.Achievement
+// @Router       /api/v1/achievements/{id} [get]
 func getAchievementDetail(
 	achievementService service.AchievementService,
 ) fiber.Handler {
@@ -45,6 +64,16 @@ func getAchievementDetail(
 	}
 }
 
+// createAchievement godoc
+// @Summary      Create Achievement
+// @Description  Create a new achievement record (Mahasiswa only)
+// @Tags         Achievements
+// @Accept       json
+// @Produce      json
+// @Param        request  body      models.Achievement  true  "Achievement Data"
+// @Security     ApiKeyAuth
+// @Success      201      {object}  map[string]string "Returns Mongo ID"
+// @Router       /api/v1/achievements [post]
 func createAchievement(
 	achievementService service.AchievementService,
 	refService service.AchievementReferenceService,
@@ -81,6 +110,17 @@ func createAchievement(
 	}
 }
 
+// updateAchievement godoc
+// @Summary      Update Achievement
+// @Description  Update draft achievement details (Mahasiswa only)
+// @Tags         Achievements
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string             true  "Mongo Achievement ID"
+// @Param        request  body      models.Achievement true  "Updated Achievement Data"
+// @Security     ApiKeyAuth
+// @Success      200      {string}  string  "OK"
+// @Router       /api/v1/achievements/{id} [put]
 func updateAchievement(
 	achievementService service.AchievementService,
 ) fiber.Handler {
@@ -104,6 +144,16 @@ func updateAchievement(
 	}
 }
 
+// deleteAchievement godoc
+// @Summary      Delete Achievement
+// @Description  Soft delete achievement from system (Mahasiswa only)
+// @Tags         Achievements
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Mongo Achievement ID"
+// @Security     ApiKeyAuth
+// @Success      200  {string}  string  "OK"
+// @Router       /api/v1/achievements/{id} [delete]
 func deleteAchievement(
 	refService service.AchievementReferenceService,
 ) fiber.Handler {
@@ -121,6 +171,16 @@ func deleteAchievement(
 	}
 }
 
+// submitAchievement godoc
+// @Summary      Submit Achievement
+// @Description  Change status from Draft to Submitted for verification
+// @Tags         Achievements
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Mongo Achievement ID"
+// @Security     ApiKeyAuth
+// @Success      200  {string}  string  "OK"
+// @Router       /api/v1/achievements/{id}/submit [post]
 func submitAchievement(
 	refService service.AchievementReferenceService,
 ) fiber.Handler {
@@ -135,6 +195,17 @@ func submitAchievement(
 	}
 }
 
+// verifyAchievement godoc
+// @Summary      Verify Achievement
+// @Description  Approve achievement and assign points (Dosen Wali only)
+// @Tags         Achievements
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string  true  "Mongo Achievement ID"
+// @Param        request  body      object  true  "Points data"
+// @Security     ApiKeyAuth
+// @Success      200      {string}  string  "OK"
+// @Router       /api/v1/achievements/{id}/verify [post]
 func verifyAchievement(
 	refService service.AchievementReferenceService,
 ) fiber.Handler {
@@ -142,10 +213,18 @@ func verifyAchievement(
 		id := c.Params("id")
 		verifierID := c.Locals("user_id").(uuid.UUID)
 
+		var body struct {
+			Points float64 `json:"points"`
+		}
+		if err := c.BodyParser(&body); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "Invalid points format")
+		}
+
 		if err := refService.Verify(
-			context.Background(),
+			c.Context(),
 			id,
 			verifierID,
+			body.Points,
 		); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
@@ -154,6 +233,17 @@ func verifyAchievement(
 	}
 }
 
+// rejectAchievement godoc
+// @Summary      Reject Achievement
+// @Description  Reject achievement with a note (Dosen Wali only)
+// @Tags         Achievements
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string  true  "Mongo Achievement ID"
+// @Param        request  body      object  true  "Rejection note"
+// @Security     ApiKeyAuth
+// @Success      200      {string}  string  "OK"
+// @Router       /api/v1/achievements/{id}/reject [post]
 func rejectAchievement(
 	refService service.AchievementReferenceService,
 ) fiber.Handler {
@@ -179,6 +269,16 @@ func rejectAchievement(
 	}
 }
 
+// achievementHistory godoc
+// @Summary      Get Achievement History
+// @Description  Retrieve status history and metadata of an achievement
+// @Tags         Achievements
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Mongo Achievement ID"
+// @Security     ApiKeyAuth
+// @Success      200  {object}  models.AchievementReference
+// @Router       /api/v1/achievements/{id}/history [get]
 func achievementHistory(
 	refService service.AchievementReferenceService,
 ) fiber.Handler {
@@ -194,6 +294,17 @@ func achievementHistory(
 	}
 }
 
+// addAttachment godoc
+// @Summary      Add Attachment
+// @Description  Upload/Add file URL to an achievement
+// @Tags         Achievements
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string             true  "Mongo Achievement ID"
+// @Param        request  body      models.Attachment  true  "Attachment data"
+// @Security     ApiKeyAuth
+// @Success      201      {string}  string             "Created"
+// @Router       /api/v1/achievements/{id}/attachments [post]
 func addAttachment(
 	achievementService service.AchievementService,
 ) fiber.Handler {

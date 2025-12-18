@@ -11,13 +11,25 @@ import (
 
 var validate = validator.New()
 
+// processCreateUser godoc
+// @Summary      Create a new user
+// @Description  Create a new user record in the system (Admin only)
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        request  body      models.CreateUserRequest  true  "User Data"
+// @Success      201      {object}  models.UserResponse
+// @Failure      400      {object}  map[string]string
+// @Failure      409      {object}  map[string]string "Email/Username already taken"
+// @Security     ApiKeyAuth
+// @Router       /api/v1/users [post]
 func processCreateUser(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		req := new(models.CreateUserRequest)
 		if err := c.BodyParser(req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid request body"})
 		}
-		
+
 		if err := validate.Struct(req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": err.Error()})
 		}
@@ -34,6 +46,17 @@ func processCreateUser(s service.UserService) fiber.Handler {
 	}
 }
 
+// processGetUserByID godoc
+// @Summary      Get user by ID
+// @Description  Retrieve detailed information of a specific user
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "User UUID"
+// @Success      200  {object}  models.UserResponse
+// @Failure      404  {object}  map[string]string "User not found"
+// @Security     ApiKeyAuth
+// @Router       /api/v1/users/{id} [get]
 func processGetUserByID(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		idParam := c.Params("id")
@@ -51,6 +74,17 @@ func processGetUserByID(s service.UserService) fiber.Handler {
 	}
 }
 
+// processUpdateUser godoc
+// @Summary      Update user
+// @Description  Update user personal information
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string                    true  "User UUID"
+// @Param        request  body      models.UpdateUserRequest  true  "Updated User Data"
+// @Success      200      {object}  map[string]string         "User updated successfully"
+// @Security     ApiKeyAuth
+// @Router       /api/v1/users/{id} [put]
 func processUpdateUser(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		idParam := c.Params("id")
@@ -63,7 +97,7 @@ func processUpdateUser(s service.UserService) fiber.Handler {
 		if err := c.BodyParser(req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "error", "message": "Invalid request body"})
 		}
-		
+
 		if err := s.UpdateUser(c.Context(), userID, req); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": err.Error()})
 		}
@@ -72,6 +106,16 @@ func processUpdateUser(s service.UserService) fiber.Handler {
 	}
 }
 
+// processDeleteUser godoc
+// @Summary      Delete user
+// @Description  Remove user from the system
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string             true  "User UUID"
+// @Success      200  {object}  map[string]string  "User deleted successfully"
+// @Security     ApiKeyAuth
+// @Router       /api/v1/users/{id} [delete]
 func processDeleteUser(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		idParam := c.Params("id")
@@ -88,6 +132,17 @@ func processDeleteUser(s service.UserService) fiber.Handler {
 	}
 }
 
+// processGetAllUsers godoc
+// @Summary      List all users
+// @Description  Retrieve a paginated list of all registered users
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        page   query     int  false  "Page number (default: 1)"
+// @Param        limit  query     int  false  "Items per page (default: 10)"
+// @Success      200    {object}  map[string]interface{}
+// @Security     ApiKeyAuth
+// @Router       /api/v1/users [get]
 func processGetAllUsers(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		page := c.QueryInt("page", 1)
@@ -112,6 +167,17 @@ func processGetAllUsers(s service.UserService) fiber.Handler {
 	}
 }
 
+// processUpdateUserRole godoc
+// @Summary      Update user role
+// @Description  Change the access role of a user
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string                        true  "User UUID"
+// @Param        request  body      models.UpdateUserRoleRequest  true  "Role Data"
+// @Success      200      {object}  map[string]string             "User role updated successfully"
+// @Security     ApiKeyAuth
+// @Router       /api/v1/users/{id}/role [put]
 func processUpdateUserRole(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		idParam := c.Params("id")

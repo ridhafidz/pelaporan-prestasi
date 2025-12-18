@@ -7,13 +7,18 @@ import (
 	"backend/app/service"
 	"backend/middleware"
 
+	_ "backend/docs"
+
+	"github.com/gofiber/swagger"
+
 	jwtware "github.com/gofiber/contrib/jwt"
 	"github.com/gofiber/fiber/v2"
 )
 
 func SetupRoutes(app *fiber.App, userService service.UserService, authService service.AuthService, achievementService service.AchievementService,
-	referenceService service.AchievementReferenceService, studentLecturerService service.StudentLecturerService) {
+	referenceService service.AchievementReferenceService, studentLecturerService service.StudentLecturerService, reportService service.ReportService) {
 
+	app.Get("/swagger/*", swagger.HandlerDefault)
 	api := app.Group("/api/v1")
 	auth := api.Group("/auth")
 	auth.Post("/login", processLogin(authService))
@@ -67,5 +72,9 @@ func SetupRoutes(app *fiber.App, userService service.UserService, authService se
 	lecturers := api.Group("/lecturers")
 	lecturers.Get("/", LecturerList(studentLecturerService))
 	lecturers.Get("/:id/advisees", LecturerAdvisees(studentLecturerService))
+
+	reports := api.Group("/reports", middleware.JWTMiddleware())
+	reports.Get("/statistics", handleGetStatistics(reportService))
+	reports.Get("/student/:id", handleGetStudentReport(reportService))
 
 }

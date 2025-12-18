@@ -11,6 +11,16 @@ import (
 	"backend/middleware"
 )
 
+// processLogin godoc
+// @Summary      User Login
+// @Description  Authenticate user and return access & refresh tokens
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Param        request  body      models.LoginRequest  true  "Login Credentials"
+// @Success      200      {object}  models.LoginResponse
+// @Failure      401      {object}  map[string]string "Invalid email or password"
+// @Router       /api/v1/auth/login [post]
 func processLogin(s service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		req := new(models.LoginRequest)
@@ -35,6 +45,16 @@ func processLogin(s service.AuthService) fiber.Handler {
 	}
 }
 
+// processRefreshToken godoc
+// @Summary      Refresh Token
+// @Description  Get a new access token using a valid refresh token
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Success      200      {object}  models.RefreshTokenResponse
+// @Failure      401      {object}  map[string]string
+// @Router       /api/v1/auth/refresh [post]
 func processRefreshToken(s service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 
@@ -68,6 +88,15 @@ func processRefreshToken(s service.AuthService) fiber.Handler {
 	}
 }
 
+// processLogout godoc
+// @Summary      User Logout
+// @Description  Invalidate the current refresh token
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Success      200      {object}  map[string]string "Logged out successfully"
+// @Router       /api/v1/auth/logout [post]
 func processLogout(s service.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 
@@ -105,6 +134,16 @@ func processLogout(s service.AuthService) fiber.Handler {
 	}
 }
 
+// processGetProfile godoc
+// @Summary      Get Current Profile
+// @Description  Retrieve the logged-in user's profile information
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Security     ApiKeyAuth
+// @Success      200      {object}  models.UserData
+// @Failure      404      {object}  map[string]string "User not found"
+// @Router       /api/v1/auth/profile [get]
 func processGetProfile(s service.UserService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 

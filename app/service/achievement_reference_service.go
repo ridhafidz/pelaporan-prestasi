@@ -16,7 +16,7 @@ type AchievementReferenceService interface {
 	GetByMongoID(ctx context.Context, mongoID string) (*models.AchievementReference, error)
 	GetByStudentID(ctx context.Context, studentID uuid.UUID, limit, offset int) ([]models.AchievementReference, error)
 	Submit(ctx context.Context, mongoID string) error
-	Verify(ctx context.Context, mongoID string, verifierID uuid.UUID) error
+	Verify(ctx context.Context, mongoID string, verifierID uuid.UUID, points float64) error
 	Reject(ctx context.Context, mongoID string, note string) error
 	Delete(ctx context.Context, mongoID string) error
 }
@@ -108,8 +108,8 @@ func (s *achievementReferenceService) Verify(
 	ctx context.Context,
 	mongoID string,
 	verifierID uuid.UUID,
+	points float64, 
 ) error {
-
 	ref, err := s.repo.GetByMongoID(ctx, mongoID)
 	if err != nil {
 		return err
@@ -122,7 +122,15 @@ func (s *achievementReferenceService) Verify(
 		return errors.New("only submitted achievement can be verified")
 	}
 
-	return s.repo.Verify(ctx, mongoID, verifierID)
+	if err := s.repo.Verify(ctx, mongoID, verifierID); err != nil {
+		return err
+	}
+
+	if err := s.achievementRepo.UpdatePoints(ctx, mongoID, points); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *achievementReferenceService) Reject(
