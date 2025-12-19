@@ -108,7 +108,7 @@ func (s *achievementReferenceService) Verify(
 	ctx context.Context,
 	mongoID string,
 	verifierID uuid.UUID,
-	points float64, 
+	points float64,
 ) error {
 	ref, err := s.repo.GetByMongoID(ctx, mongoID)
 	if err != nil {
@@ -179,5 +179,5 @@ func (s *achievementReferenceService) Delete(
 		return err
 	}
 
-	return s.repo.UpdateStatus(ctx, mongoID, models.StatusDeleted)
+	return s.repo.SoftDeleteByMongoID(ctx, mongoID)
 }

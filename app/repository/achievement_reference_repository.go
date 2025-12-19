@@ -113,18 +113,29 @@ func (r *achievementReferenceRepository) UpdateStatus(
 	status models.AchievementStatus,
 ) error {
 
-	query := `
-		UPDATE achievement_references
-		SET 
-			status = $1,
-			submitted_at = CASE 
-				WHEN $1 = 'submitted' THEN NOW() 
-				ELSE submitted_at 
-			END,
-			updated_at = NOW()
-		WHERE mongo_achievement_id = $2
-		AND status = 'draft'
-	`
+	var query string
+
+	if status == models.StatusSubmitted {
+
+		query = `
+            UPDATE achievement_references
+            SET 
+                status = $1,
+                submitted_at = NOW(),  
+                updated_at = NOW()
+            WHERE mongo_achievement_id = $2
+            AND status = 'draft'
+        `
+	} else {
+		query = `
+            UPDATE achievement_references
+            SET 
+                status = $1,
+                updated_at = NOW()
+            WHERE mongo_achievement_id = $2
+            AND status = 'draft'
+        `
+	}
 
 	_, err := r.db.ExecContext(ctx, query, status, mongoID)
 	return err

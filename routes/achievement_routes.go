@@ -2,6 +2,9 @@ package routes
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"backend/app/models"
 	"backend/app/service"
@@ -295,15 +298,15 @@ func achievementHistory(
 }
 
 // addAttachment godoc
-// @Summary      Add Attachment
-// @Description  Upload/Add file URL to an achievement
+// @Summary      Add Attachment (Upload PDF)
+// @Description  Upload PDF evidence file for an achievement
 // @Tags         Achievements
-// @Accept       json
+// @Accept       multipart/form-data
 // @Produce      json
-// @Param        id       path      string             true  "Mongo Achievement ID"
-// @Param        request  body      models.Attachment  true  "Attachment data"
+// @Param        id    path      string  true  "Mongo Achievement ID"
+// @Param        file  formData  file    true  "PDF File to upload"
 // @Security     ApiKeyAuth
-// @Success      201      {string}  string             "Created"
+// @Success      201   {object}  map[string]string "message & url"
 // @Router       /api/v1/achievements/{id}/attachments [post]
 func addAttachment(
 	achievementService service.AchievementService,
@@ -311,19 +314,39 @@ func addAttachment(
 	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
 
-		var attachment models.Attachment
-		if err := c.BodyParser(&attachment); err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		file, err := c.FormFile("file")
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "Upload gagal: Key 'file' tidak ditemukan atau file kosong")
+		}
+
+		uploadDir := "./uploads"
+		if _, err := os.Stat(uploadDir); os.IsNotExist(err) {
+			os.Mkdir(uploadDir, 0755)
+		}
+
+		filePath := fmt.Sprintf("%s/%s_%s", uploadDir, id, file.Filename)
+		if err := c.SaveFile(file, filePath); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, "Gagal menyimpan file ke server")
+		}
+
+		attachment := models.Attachment{
+			FileURL:  filePath,                    // Path file di server
+			FileName: file.Filename,               // Nama asli file
+			FileType: filepath.Ext(file.Filename), // Ekstensi (.pdf)
 		}
 
 		if err := achievementService.AddAttachment(
-			context.Background(),
+			c.Context(),
 			id,
 			attachment,
 		); err != nil {
+			os.Remove(filePath)
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 
-		return c.SendStatus(fiber.StatusCreated)
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+			"message": "File uploaded successfully",
+			"url":     filePath,
+		})
 	}
 }

@@ -45,6 +45,10 @@ func (s *achievementService) Create(
 		return "", errors.New("student_id is required")
 	}
 
+	if achievement.Attachments == nil {
+		achievement.Attachments = []models.Attachment{}
+	}
+
 	achievement.CreatedAt = time.Now()
 	achievement.UpdatedAt = time.Now()
 

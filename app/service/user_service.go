@@ -86,7 +86,7 @@ func (s *userService) CreateUser(
 			UpdatedAt:    time.Now(),
 		})
 
-	case "DosenWali":
+	case "DosenWali", "Dosen Wali":
 		if req.LecturerID == "" || req.Department == "" {
 			return nil, errors.New("lecturer data is required for role DosenWali")
 		}

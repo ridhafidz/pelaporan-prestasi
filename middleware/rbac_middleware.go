@@ -89,6 +89,7 @@ func OnlyDosenWali() fiber.Handler {
 			})
 		}
 
+		c.Locals("user_id", claims.UserID)
 		c.Locals("lecturer_id", *claims.LecturerID)
 
 		return c.Next()

@@ -209,9 +209,9 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Upload/Add file URL to an achievement",
+                "description": "Upload PDF evidence file for an achievement",
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -219,7 +219,7 @@ const docTemplate = `{
                 "tags": [
                     "Achievements"
                 ],
-                "summary": "Add Attachment",
+                "summary": "Add Attachment (Upload PDF)",
                 "parameters": [
                     {
                         "type": "string",
@@ -229,20 +229,21 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Attachment data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.Attachment"
-                        }
+                        "type": "file",
+                        "description": "PDF File to upload",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "message \u0026 url",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
